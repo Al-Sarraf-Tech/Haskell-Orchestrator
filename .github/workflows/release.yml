@@ -63,9 +63,12 @@ jobs:
           key: release-${{ matrix.os-name }}-${{ matrix.arch }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
 
       - name: Update and build
+        shell: bash
         run: |
           cabal update
           cabal build exe:orchestrator -O2
+          mkdir -p _bin
+          cabal install exe:orchestrator -O2 --install-method=copy --overwrite-policy=always --installdir=_bin
 
       - name: Run tests
         run: cabal test all --test-show-details=direct
@@ -75,13 +78,12 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          BINARY=$(cabal list-bin orchestrator)
           PRODUCT="haskell-orchestrator"
           ASSET_NAME="${PRODUCT}-${VERSION}-${{ matrix.os-name }}-${{ matrix.arch }}"
           STAGING="staging/${ASSET_NAME}"
           mkdir -p "${STAGING}"
 
-          cp "${BINARY}" "${STAGING}/orchestrator${{ matrix.ext }}"
+          cp "_bin/orchestrator${{ matrix.ext }}" "${STAGING}/orchestrator${{ matrix.ext }}"
           cp README.md LICENSE CHANGELOG.md "${STAGING}/"
 
           if [ "${{ matrix.archive }}" = "tar.gz" ]; then
