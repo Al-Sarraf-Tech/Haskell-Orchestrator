@@ -1,6 +1,6 @@
 cabal-version:   3.0
 name:            orchestrator
-version:         0.1.0.0
+version:         1.0.0.0
 synopsis:        GitHub Actions workflow standardization and validation tool
 description:
   Haskell Orchestrator scans GitHub Actions workflows, parses them into a typed

@@ -14,10 +14,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-release:
-    name: Build Release Artifacts
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+  build:
+    name: Build ${{ matrix.os-name }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os-name: linux
+            arch: x86_64
+            ext: ''
+            archive: tar.gz
+          - runner: ubuntu-24.04-arm
+            os-name: linux
+            arch: arm64
+            ext: ''
+            archive: tar.gz
+          - runner: macos-13
+            os-name: macos
+            arch: x86_64
+            ext: ''
+            archive: tar.gz
+          - runner: macos-latest
+            os-name: macos
+            arch: arm64
+            ext: ''
+            archive: tar.gz
+          - runner: windows-latest
+            os-name: windows
+            arch: x86_64
+            ext: '.exe'
+            archive: zip
 
     steps:
       - name: Checkout
@@ -35,7 +65,7 @@ jobs:
           path: |
             ~/.cabal/store
             dist-newstyle
-          key: release-${{ runner.os }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
+          key: release-${{ matrix.os-name }}-${{ matrix.arch }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
 
       - name: Update and build
         run: |
@@ -45,70 +75,153 @@ jobs:
       - name: Run tests
         run: cabal test all --test-show-details=direct
 
-      - name: Prepare artifacts
-        id: artifacts
+      - name: Package artifact
+        id: package
+        shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           BINARY=$(cabal list-bin orchestrator)
-          ARTIFACT_DIR="release-artifacts"
-          mkdir -p "$ARTIFACT_DIR"
+          PRODUCT="haskell-orchestrator"
+          ASSET_NAME="${PRODUCT}-${VERSION}-${{ matrix.os-name }}-${{ matrix.arch }}"
+          STAGING="staging/${ASSET_NAME}"
+          mkdir -p "${STAGING}"
 
-          cp "$BINARY" "$ARTIFACT_DIR/orchestrator-${VERSION}-linux-x86_64"
-          chmod +x "$ARTIFACT_DIR/orchestrator-${VERSION}-linux-x86_64"
+          cp "${BINARY}" "${STAGING}/orchestrator${{ matrix.ext }}"
+          cp README.md LICENSE CHANGELOG.md "${STAGING}/"
 
-          # Checksums
-          cd "$ARTIFACT_DIR"
+          if [ "${{ matrix.archive }}" = "tar.gz" ]; then
+            tar -czf "staging/${ASSET_NAME}.tar.gz" -C staging "${ASSET_NAME}"
+            echo "asset=staging/${ASSET_NAME}.tar.gz" >> "$GITHUB_OUTPUT"
+          else
+            cd staging && 7z a -tzip "${ASSET_NAME}.zip" "${ASSET_NAME}/" && cd ..
+            echo "asset=staging/${ASSET_NAME}.zip" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "asset_name=${ASSET_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd staging
+          sha256sum *.tar.gz *.zip 2>/dev/null > SHA256SUMS.txt || true
+          cat SHA256SUMS.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.os-name }}-${{ matrix.arch }}
+          path: |
+            staging/*.tar.gz
+            staging/*.zip
+            staging/SHA256SUMS.txt
+          retention-days: 5
+
+  publish:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Prepare release assets
+        id: prep
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p release
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec cp {} release/ \;
+          cd release
           sha256sum * > "SHA256SUMS-${VERSION}.txt"
-          cd ..
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          ls -la
 
-          echo "artifact_dir=$ARTIFACT_DIR" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Setup Haskell (for SBOM)
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.6.7'
+          cabal-version: '3.14'
 
       - name: Generate SBOM
         run: |
-          VERSION="${{ steps.artifacts.outputs.version }}"
-          ARTIFACT_DIR="${{ steps.artifacts.outputs.artifact_dir }}"
+          VERSION="${{ steps.prep.outputs.version }}"
+          cabal update
           cabal freeze
-          # Convert freeze file to CycloneDX-compatible listing
-          cat > "$ARTIFACT_DIR/sbom-${VERSION}.json" << 'SBOM_EOF'
-          {
+          python3 << 'PYEOF'
+          import json, re
+          sbom = {
             "bomFormat": "CycloneDX",
             "specVersion": "1.5",
             "version": 1,
             "metadata": {
               "component": {
                 "type": "application",
-                "name": "orchestrator",
-                "version": "${{ steps.artifacts.outputs.version }}"
+                "name": "haskell-orchestrator",
+                "version": "${{ steps.prep.outputs.version }}"
               }
             },
             "components": []
           }
-          SBOM_EOF
-          # Populate components from freeze file
-          python3 -c "
-          import json, re
-          sbom = json.load(open('$ARTIFACT_DIR/sbom-${VERSION}.json'))
-          comps = []
-          with open('cabal.project.freeze') as f:
+          with open("cabal.project.freeze") as f:
               for line in f:
-                  m = re.search(r'any\.(\S+)\s+==(\S+)', line)
+                  m = re.search(r"any\.(\S+)\s+==(\S+)", line)
                   if m:
-                      comps.append({'type':'library','name':m.group(1),'version':m.group(2)})
-          sbom['components'] = comps
-          json.dump(sbom, open('$ARTIFACT_DIR/sbom-${VERSION}.json','w'), indent=2)
-          "
+                      sbom["components"].append({
+                          "type": "library",
+                          "name": m.group(1),
+                          "version": m.group(2)
+                      })
+          with open(f"release/sbom-{sbom['metadata']['component']['version']}.json", "w") as out:
+              json.dump(sbom, out, indent=2)
+          PYEOF
 
       - name: Attest artifacts
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: '${{ steps.artifacts.outputs.artifact_dir }}/orchestrator-*'
+          subject-path: 'release/haskell-orchestrator-*'
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          name: "Haskell Orchestrator v${{ steps.prep.outputs.version }}"
+          body: |
+            ## Haskell Orchestrator v${{ steps.prep.outputs.version }}
+
+            Workflow standardization, drift detection, and remediation planning for GitHub Actions.
+
+            ### Downloads
+
+            | Platform | Architecture | File |
+            |----------|-------------|------|
+            | Linux | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-linux-x86_64.tar.gz` |
+            | Linux | arm64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-linux-arm64.tar.gz` |
+            | macOS | Intel | `haskell-orchestrator-${{ steps.prep.outputs.version }}-macos-x86_64.tar.gz` |
+            | macOS | Apple Silicon | `haskell-orchestrator-${{ steps.prep.outputs.version }}-macos-arm64.tar.gz` |
+            | Windows | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-windows-x86_64.zip` |
+
+            ### Verification
+
+            ```bash
+            sha256sum -c SHA256SUMS-${{ steps.prep.outputs.version }}.txt
+            gh attestation verify haskell-orchestrator-${{ steps.prep.outputs.version }}-linux-x86_64.tar.gz --owner jalsarraf0
+            ```
+
+            ### Quick Start
+
+            ```bash
+            tar xzf haskell-orchestrator-${{ steps.prep.outputs.version }}-linux-x86_64.tar.gz
+            cd haskell-orchestrator-${{ steps.prep.outputs.version }}-linux-x86_64
+            ./orchestrator demo
+            ./orchestrator scan /path/to/repo
+            ```
           files: |
-            ${{ steps.artifacts.outputs.artifact_dir }}/*
-          generate_release_notes: true
+            release/*
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
