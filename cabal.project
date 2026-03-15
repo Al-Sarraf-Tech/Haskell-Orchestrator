@@ -1,0 +1,13 @@
+packages: .
+
+-- Use GHC 9.6.x
+-- with-compiler: ghc-9.6.7
+
+-- Reproducibility
+index-state: 2026-03-01T00:00:00Z
+
+-- Build options
+jobs: $ncpus
+
+-- Test options
+test-show-details: direct

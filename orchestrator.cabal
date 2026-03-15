@@ -1,0 +1,99 @@
+cabal-version:   3.0
+name:            orchestrator
+version:         0.1.0.0
+synopsis:        GitHub Actions workflow standardization and validation tool
+description:
+  Haskell Orchestrator scans GitHub Actions workflows, parses them into a typed
+  domain model, validates correctness and policy compliance, detects drift and
+  duplication, and generates deterministic remediation plans.
+  .
+  Designed for DevOps engineers, platform teams, and security-minded operators
+  who need to maintain consistent, secure CI/CD workflows across repositories.
+
+license:         MIT
+license-file:    LICENSE
+author:          Jamal Al-Sarraf
+maintainer:      19882582+jalsarraf0@users.noreply.github.com
+category:        Development
+build-type:      Simple
+extra-doc-files: README.md CHANGELOG.md
+tested-with:     GHC ==9.6.7
+
+source-repository head
+  type:     git
+  location: https://github.com/jalsarraf0/Haskell-Orchestrator.git
+
+common warnings
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
+               -Wincomplete-uni-patterns -Wmissing-export-lists
+               -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+
+library
+  import:           warnings
+  default-language: GHC2021
+  default-extensions: DerivingStrategies OverloadedStrings
+  hs-source-dirs:   src
+  exposed-modules:
+    Orchestrator
+    Orchestrator.Model
+    Orchestrator.Parser
+    Orchestrator.Policy
+    Orchestrator.Validate
+    Orchestrator.Diff
+    Orchestrator.Render
+    Orchestrator.Config
+    Orchestrator.Demo
+    Orchestrator.Scan
+    Orchestrator.Types
+  build-depends:
+    , aeson           >=2.1   && <2.3
+    , base            >=4.18  && <4.20
+    , bytestring      >=0.11  && <0.13
+    , containers       >=0.6  && <0.8
+    , directory        >=1.3  && <1.4
+    , filepath         >=1.4  && <1.6
+    , mtl              >=2.3  && <2.4
+    , text             >=2.0  && <2.2
+    , time             >=1.12 && <1.15
+    , yaml             >=0.11 && <0.12
+
+executable orchestrator
+  import:           warnings
+  default-language: GHC2021
+  default-extensions: DerivingStrategies OverloadedStrings
+  hs-source-dirs:   app
+  main-is:          Main.hs
+  other-modules:
+    CLI
+  build-depends:
+    , base            >=4.18  && <4.20
+    , orchestrator
+    , optparse-applicative >=0.17 && <0.19
+    , text             >=2.0  && <2.2
+
+test-suite orchestrator-test
+  import:           warnings
+  default-language: GHC2021
+  default-extensions: DerivingStrategies OverloadedStrings
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test
+  main-is:          Main.hs
+  other-modules:
+    Test.Model
+    Test.Parser
+    Test.Policy
+    Test.Validate
+    Test.Diff
+    Test.Demo
+    Test.Config
+    Test.Golden
+  build-depends:
+    , base            >=4.18  && <4.20
+    , bytestring      >=0.11  && <0.13
+    , containers       >=0.6  && <0.8
+    , filepath         >=1.4  && <1.6
+    , orchestrator
+    , tasty            >=1.4   && <1.6
+    , tasty-hunit      >=0.10  && <0.11
+    , text             >=2.0  && <2.2
+    , yaml             >=0.11 && <0.12

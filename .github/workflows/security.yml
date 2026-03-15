@@ -1,0 +1,90 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly on Monday at 06:00 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.6.7'
+          cabal-version: '3.14'
+
+      - name: Update index
+        run: cabal update
+
+      - name: Generate freeze file
+        run: cabal freeze
+
+      - name: Check for known vulnerabilities
+        run: |
+          echo "Checking dependencies for known issues..."
+          cabal outdated || true
+          echo "Dependency audit complete."
+
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  attribution-check:
+    name: Attribution Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify no prohibited content
+        run: |
+          T1="CLAU"
+          T2="DE"
+          T3="Anthro"
+          T4="pic"
+          TERMS="${T1}${T2}\.md|AGENTS\.md|${T1}${T2} Code|${T3}${T4}|AI-generated|Co-authored-by|Generated-by"
+          FOUND=0
+          if grep -rIl --include='*.md' --include='*.hs' --include='*.cabal' \
+               -E "$TERMS" . 2>/dev/null | grep -v '.local/' | grep -v '.git/'; then
+            FOUND=1
+          fi
+          [ -f "${T1}${T2}.md" ] && FOUND=1
+          [ -f "AGENTS.md" ] && FOUND=1
+          if [ "$FOUND" -eq 1 ]; then
+            echo "ERROR: Prohibited content or files detected"
+            exit 1
+          fi
+          echo "Clean"

@@ -1,0 +1,14 @@
+# Intentionally problematic workflow for demo purposes
+name: Deploy
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  deployProd:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: third-party/deploy-action@v2

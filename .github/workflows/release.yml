@@ -1,0 +1,114 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.6.7'
+          cabal-version: '3.14'
+
+      - name: Cache Cabal
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: release-${{ runner.os }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
+
+      - name: Update and build
+        run: |
+          cabal update
+          cabal build exe:orchestrator -O2
+
+      - name: Run tests
+        run: cabal test all --test-show-details=direct
+
+      - name: Prepare artifacts
+        id: artifacts
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          BINARY=$(cabal list-bin orchestrator)
+          ARTIFACT_DIR="release-artifacts"
+          mkdir -p "$ARTIFACT_DIR"
+
+          cp "$BINARY" "$ARTIFACT_DIR/orchestrator-${VERSION}-linux-x86_64"
+          chmod +x "$ARTIFACT_DIR/orchestrator-${VERSION}-linux-x86_64"
+
+          # Checksums
+          cd "$ARTIFACT_DIR"
+          sha256sum * > "SHA256SUMS-${VERSION}.txt"
+          cd ..
+
+          echo "artifact_dir=$ARTIFACT_DIR" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SBOM
+        run: |
+          VERSION="${{ steps.artifacts.outputs.version }}"
+          ARTIFACT_DIR="${{ steps.artifacts.outputs.artifact_dir }}"
+          cabal freeze
+          # Convert freeze file to CycloneDX-compatible listing
+          cat > "$ARTIFACT_DIR/sbom-${VERSION}.json" << 'SBOM_EOF'
+          {
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.5",
+            "version": 1,
+            "metadata": {
+              "component": {
+                "type": "application",
+                "name": "orchestrator",
+                "version": "${{ steps.artifacts.outputs.version }}"
+              }
+            },
+            "components": []
+          }
+          SBOM_EOF
+          # Populate components from freeze file
+          python3 -c "
+          import json, re
+          sbom = json.load(open('$ARTIFACT_DIR/sbom-${VERSION}.json'))
+          comps = []
+          with open('cabal.project.freeze') as f:
+              for line in f:
+                  m = re.search(r'any\.(\S+)\s+==(\S+)', line)
+                  if m:
+                      comps.append({'type':'library','name':m.group(1),'version':m.group(2)})
+          sbom['components'] = comps
+          json.dump(sbom, open('$ARTIFACT_DIR/sbom-${VERSION}.json','w'), indent=2)
+          "
+
+      - name: Attest artifacts
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: '${{ steps.artifacts.outputs.artifact_dir }}/orchestrator-*'
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.artifacts.outputs.artifact_dir }}/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

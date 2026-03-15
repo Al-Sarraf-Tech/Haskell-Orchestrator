@@ -1,0 +1,27 @@
+# Example Orchestrator configuration
+# Copy this to .orchestrator.yml in your project root
+
+scan:
+  # Explicit targets — no automatic discovery
+  targets:
+    - .  # Current directory
+  exclude:
+    - vendor/
+    - third_party/
+  max_depth: 10
+  follow_symlinks: false
+
+policy:
+  pack: standard
+  min_severity: info
+  disabled: []
+  # disabled: [NAME-001, NAME-002]  # Uncomment to disable naming rules
+
+output:
+  format: text    # text or json
+  verbose: false
+  color: true
+
+resources:
+  jobs: 4
+  profile: safe   # safe, balanced, or fast

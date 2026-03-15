@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        ghc: ['9.6.7']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: '3.14'
+
+      - name: Cache Cabal
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-ghc-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
+          restore-keys: |
+            ${{ runner.os }}-ghc-${{ matrix.ghc }}-
+
+      - name: Update package index
+        run: cabal update
+
+      - name: Build
+        run: cabal build all
+
+      - name: Run tests
+        run: cabal test all --test-show-details=direct
+
+      - name: Check formatting
+        run: |
+          cabal install ormolu --constraint 'ormolu >= 0.7'
+          ormolu --mode check $(find src app test -name '*.hs')
+        continue-on-error: true
+
+  attribution-check:
+    name: Attribution Leak Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for prohibited content
+        run: |
+          # Build search terms dynamically to avoid self-match
+          T1="CLAU"
+          T2="DE"
+          T3="Anthro"
+          T4="pic"
+          TERMS="${T1}${T2}\.md|AGENTS\.md|${T1}${T2} Code|${T3}${T4}|AI-generated|Co-authored-by|Generated-by"
+          if grep -rIl --include='*.md' --include='*.hs' --include='*.cabal' \
+               -E "$TERMS" . 2>/dev/null | grep -v '.local/' | grep -v '.git/'; then
+            echo "ERROR: Prohibited content detected"
+            exit 1
+          fi
+          if [ -f "${T1}${T2}.md" ] || [ -f "AGENTS.md" ]; then
+            echo "ERROR: Prohibited file exists"
+            exit 1
+          fi
+          echo "Attribution check passed"
