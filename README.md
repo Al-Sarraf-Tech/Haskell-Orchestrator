@@ -1,5 +1,9 @@
 # Haskell Orchestrator
 
+[![CI](https://github.com/jalsarraf0/Haskell-Orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/jalsarraf0/Haskell-Orchestrator/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github)](https://github.com/sponsors/jalsarraf0)
+
 **Workflow standardization, drift detection, and remediation planning for
 GitHub Actions.**
 
@@ -347,10 +351,20 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full development guidelines.
 2. Push the tag: `git push origin v0.1.0`
 3. GitHub Actions builds, tests, and creates a release with artifacts
 
-## Sponsorship
+## Sponsor This Project
 
-If you find Haskell Orchestrator useful, consider sponsoring its development.
-Sponsorship helps fund ongoing maintenance, new features, and community support.
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github)](https://github.com/sponsors/jalsarraf0)
+
+Haskell Orchestrator is free and open source. If it saves your team time or
+improves your CI/CD hygiene, please consider sponsoring its development.
+
+Sponsorship directly funds:
+- Ongoing maintenance and bug fixes
+- New policy rules and detection capabilities
+- Documentation improvements
+- Community support
+
+**[Become a sponsor on GitHub](https://github.com/sponsors/jalsarraf0)**
 
 ## License
 
