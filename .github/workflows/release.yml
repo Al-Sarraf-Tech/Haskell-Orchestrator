@@ -104,7 +104,7 @@ jobs:
           cat SHA256SUMS.txt
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ matrix.os-name }}-${{ matrix.arch }}
           path: |
