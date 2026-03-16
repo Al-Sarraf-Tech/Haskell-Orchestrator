@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-15
+
+### Added
+- GitHub API integration for remote workflow scanning (Orchestrator.GitHub)
+- Auto-remediation module for safe mechanical fixes (Orchestrator.Fix)
+- Custom policy rules via .orchestrator.yml configuration
+- QuickCheck property-based tests (12 properties)
+- Integration tests with realistic workflow patterns (10 tests)
+- Parser edge case and fuzz tests (30+ tests)
+- Total test count: 115 (was 45)
+
+### Changed
+- New dependencies: http-client, http-client-tls, http-types, QuickCheck
+
 ## [1.0.5] - 2026-03-15
 
 ### Added
