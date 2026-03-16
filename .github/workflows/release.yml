@@ -167,6 +167,7 @@ jobs:
   publish:
     name: Publish Release
     needs: build
+    if: ${{ always() && needs.build.result != 'cancelled' }}
     runs-on: [self-hosted, linux, haskell]
     timeout-minutes: 15
 
