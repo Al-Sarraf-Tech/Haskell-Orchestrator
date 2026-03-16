@@ -6,6 +6,8 @@ module Orchestrator.Config
   , OutputConfig (..)
   , ResourceConfig (..)
   , ParallelismProfile (..)
+  , CustomRuleConfig (..)
+  , RuleCondition (..)
   , loadConfig
   , defaultConfig
   , validateConfig
@@ -13,6 +15,7 @@ module Orchestrator.Config
 
 import Data.Aeson (FromJSON (..), (.:?), (.!=), withObject)
 import Data.ByteString qualified as BS
+import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Yaml qualified as Yaml
@@ -82,12 +85,63 @@ instance FromJSON ResourceConfig where
     <$> o .:? "jobs"
     <*> o .:? "profile" .!= Safe
 
+-- | A condition that a custom rule checks against a workflow.
+data RuleCondition
+  = PermissionContains !Text          -- ^ Workflow permissions contain this string
+  | ActionNotPinned                   -- ^ Any action is not SHA-pinned
+  | JobMissingField !Text             -- ^ Jobs missing a specific field (e.g., "timeout-minutes")
+  | WorkflowNamePattern !Text         -- ^ Workflow name must match this regex pattern
+  | StepUsesPattern !Text             -- ^ Step uses: field matches this pattern
+  | TriggerContains !Text             -- ^ Triggers contain this event name
+  | EnvKeyPresent !Text               -- ^ Environment has this key
+  | RunnerMatches !Text               -- ^ Runner specification contains this string
+  deriving stock (Eq, Show)
+
+instance FromJSON RuleCondition where
+  parseJSON = withObject "RuleCondition" $ \o -> do
+    let tryField name constructor = fmap constructor <$> o .:? name
+    mPermission <- tryField "permission_contains" PermissionContains
+    mActionPin  <- o .:? "action_not_pinned" :: Yaml.Parser (Maybe Bool)
+    mJobField   <- tryField "job_missing_field" JobMissingField
+    mWfName     <- tryField "workflow_name_pattern" WorkflowNamePattern
+    mStepUses   <- tryField "step_uses_pattern" StepUsesPattern
+    mTrigger    <- tryField "trigger_contains" TriggerContains
+    mEnvKey     <- tryField "env_key_present" EnvKeyPresent
+    mRunner     <- tryField "runner_matches" RunnerMatches
+    let candidates = catMaybes
+          [ mPermission, mJobField, mWfName, mStepUses
+          , mTrigger, mEnvKey, mRunner
+          , if mActionPin == Just True then Just ActionNotPinned else Nothing
+          ]
+    case candidates of
+      [cond] -> pure cond
+      []     -> fail "Custom rule condition must specify exactly one condition type"
+      _      -> fail "Custom rule condition must specify exactly one condition type"
+
+-- | Configuration for a user-defined policy rule.
+data CustomRuleConfig = CustomRuleConfig
+  { crcId         :: !Text
+  , crcName       :: !Text
+  , crcSeverity   :: !Text
+  , crcCategory   :: !Text
+  , crcConditions :: ![RuleCondition]
+  } deriving stock (Eq, Show)
+
+instance FromJSON CustomRuleConfig where
+  parseJSON = withObject "CustomRuleConfig" $ \o -> CustomRuleConfig
+    <$> o .:? "id" .!= "CUSTOM-000"
+    <*> o .:? "name" .!= "Custom Rule"
+    <*> o .:? "severity" .!= "Warning"
+    <*> o .:? "category" .!= "Structure"
+    <*> o .:? "conditions" .!= []
+
 -- | Top-level configuration.
 data OrchestratorConfig = OrchestratorConfig
-  { cfgScan      :: !ScanConfig
-  , cfgPolicy    :: !PolicyConfig
-  , cfgOutput    :: !OutputConfig
-  , cfgResources :: !ResourceConfig
+  { cfgScan        :: !ScanConfig
+  , cfgPolicy      :: !PolicyConfig
+  , cfgOutput      :: !OutputConfig
+  , cfgResources   :: !ResourceConfig
+  , cfgCustomRules :: ![CustomRuleConfig]
   } deriving stock (Eq, Show)
 
 instance FromJSON OrchestratorConfig where
@@ -96,6 +150,7 @@ instance FromJSON OrchestratorConfig where
     <*> o .:? "policy" .!= defaultPolicyConfig
     <*> o .:? "output" .!= defaultOutputConfig
     <*> o .:? "resources" .!= defaultResourceConfig
+    <*> o .:? "custom_rules" .!= []
 
 defaultScanConfig :: ScanConfig
 defaultScanConfig = ScanConfig [] [] 10 False
@@ -116,6 +171,7 @@ defaultConfig = OrchestratorConfig
   , cfgPolicy = defaultPolicyConfig
   , cfgOutput = defaultOutputConfig
   , cfgResources = defaultResourceConfig
+  , cfgCustomRules = []
   }
 
 -- | Load configuration from a YAML file.
@@ -142,4 +198,24 @@ validateConfig cfg
       Left $ ConfigError "resources.jobs must be >= 1"
   | maybe False (> 64) (rcJobs (cfgResources cfg)) =
       Left $ ConfigError "resources.jobs must be <= 64"
+  | not (null invalidCustomIds) =
+      Left $ ConfigError $ "Custom rule IDs must start with 'CUSTOM-': "
+        <> T.intercalate ", " invalidCustomIds
+  | not (null emptyConditions) =
+      Left $ ConfigError $ "Custom rules must have at least one condition: "
+        <> T.intercalate ", " emptyConditions
+  | not (null dupIds) =
+      Left $ ConfigError $ "Duplicate custom rule IDs: "
+        <> T.intercalate ", " dupIds
   | otherwise = Right cfg
+  where
+    customRules = cfgCustomRules cfg
+    invalidCustomIds = [ crcId r | r <- customRules
+                       , not (T.isPrefixOf "CUSTOM-" (crcId r)) ]
+    emptyConditions = [ crcId r | r <- customRules
+                      , null (crcConditions r) ]
+    dupIds = findDups (map crcId customRules)
+    findDups [] = []
+    findDups (x:xs)
+      | x `elem` xs = x : findDups (filter (/= x) xs)
+      | otherwise    = findDups xs

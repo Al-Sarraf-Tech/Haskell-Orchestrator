@@ -15,6 +15,10 @@ module Orchestrator.Policy
   , groupByCategory
     -- * Built-in packs
   , defaultPolicyPack
+    -- * Custom rules
+  , customRuleToPolicy
+  , parseSeverity
+  , parseCategory
     -- * Individual rules
   , permissionsRequiredRule
   , broadPermissionsRule
@@ -32,6 +36,7 @@ import Data.Char (isDigit, isLower)
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
+import Orchestrator.Config (CustomRuleConfig (..), RuleCondition (..))
 import Orchestrator.Model
 import Orchestrator.Types
 
@@ -66,6 +71,112 @@ filterBySeverity minSev = filter (\f -> findingSeverity f >= minSev)
 -- | Group findings by category.
 groupByCategory :: [Finding] -> Map.Map FindingCategory [Finding]
 groupByCategory = foldl (\m f -> Map.insertWith (++) (findingCategory f) [f] m) Map.empty
+
+------------------------------------------------------------------------
+-- Custom rule support
+------------------------------------------------------------------------
+
+-- | Convert a custom rule configuration to a PolicyRule.
+customRuleToPolicy :: CustomRuleConfig -> PolicyRule
+customRuleToPolicy crc = PolicyRule
+  { ruleId          = crcId crc
+  , ruleName        = crcName crc
+  , ruleDescription = "Custom rule: " <> crcName crc
+  , ruleSeverity    = parseSeverity (crcSeverity crc)
+  , ruleCategory    = parseCategory (crcCategory crc)
+  , ruleCheck       = \wf ->
+      if all (checkCondition wf) (crcConditions crc)
+        then [Finding
+          { findingSeverity    = parseSeverity (crcSeverity crc)
+          , findingCategory    = parseCategory (crcCategory crc)
+          , findingRuleId      = crcId crc
+          , findingMessage     = crcName crc
+          , findingFile        = wfFileName wf
+          , findingLocation    = Nothing
+          , findingRemediation = Just ("Address custom rule: " <> crcName crc)
+          }]
+        else []
+  }
+
+-- | Evaluate a single condition against a workflow.
+checkCondition :: Workflow -> RuleCondition -> Bool
+checkCondition wf cond = case cond of
+  PermissionContains txt ->
+    case wfPermissions wf of
+      Just (PermissionsAll PermWrite) -> T.toCaseFold "write" == T.toCaseFold txt
+      Just (PermissionsMap m) -> any (\k -> T.toCaseFold txt `T.isInfixOf` T.toCaseFold k) (Map.keys m)
+      _ -> False
+  ActionNotPinned ->
+    any hasUnpinnedAction (concatMap jobSteps (wfJobs wf))
+  JobMissingField field ->
+    case T.toLower field of
+      "timeout-minutes" -> any (\j -> jobTimeoutMin j == Nothing) (wfJobs wf)
+      _ -> False
+  WorkflowNamePattern pat ->
+    simplePatternMatch pat (wfName wf)
+  StepUsesPattern pat ->
+    any (\s -> maybe False (simplePatternMatch pat) (stepUses s))
+        (concatMap jobSteps (wfJobs wf))
+  TriggerContains evtName ->
+    any (triggerHasEvent evtName) (wfTriggers wf)
+  EnvKeyPresent key ->
+    Map.member key (wfEnv wf) ||
+    any (\j -> Map.member key (jobEnv j)) (wfJobs wf)
+  RunnerMatches txt ->
+    any (\j -> txt `T.isInfixOf` showRunner (jobRunsOn j)) (wfJobs wf)
+
+hasUnpinnedAction :: Step -> Bool
+hasUnpinnedAction step = case stepUses step of
+  Nothing -> False
+  Just uses
+    | "./" `T.isPrefixOf` uses -> False
+    | "docker://" `T.isPrefixOf` uses -> False
+    | "@" `T.isInfixOf` uses ->
+        let ref = T.drop 1 $ T.dropWhile (/= '@') uses
+        in T.length ref /= 40 || not (T.all isHexDigit ref)
+    | otherwise -> True
+  where
+    isHexDigit c = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+
+simplePatternMatch :: Text -> Text -> Bool
+simplePatternMatch pat txt
+  | T.null pat = T.null txt
+  | T.last pat == '*' = T.init pat `T.isPrefixOf` txt
+  | T.head pat == '*' = T.tail pat `T.isSuffixOf` txt
+  | otherwise = pat == txt
+
+triggerHasEvent :: Text -> WorkflowTrigger -> Bool
+triggerHasEvent evtName (TriggerEvents evts) = any (\e -> triggerName e == evtName) evts
+triggerHasEvent _ (TriggerCron _) = False
+triggerHasEvent evtName TriggerDispatch = evtName == "workflow_dispatch"
+
+showRunner :: RunnerSpec -> Text
+showRunner (StandardRunner t) = t
+showRunner (MatrixRunner t) = t
+showRunner (CustomLabel t) = t
+
+-- | Parse a severity string to a Severity value.
+parseSeverity :: Text -> Severity
+parseSeverity t = case T.toLower t of
+  "info"     -> Info
+  "warning"  -> Warning
+  "error"    -> Error
+  "critical" -> Critical
+  _          -> Warning
+
+-- | Parse a category string to a FindingCategory value.
+parseCategory :: Text -> FindingCategory
+parseCategory t = case T.toLower t of
+  "permissions"  -> Permissions
+  "runners"      -> Runners
+  "triggers"     -> Triggers
+  "naming"       -> Naming
+  "concurrency"  -> Concurrency
+  "security"     -> Security
+  "structure"    -> Structure
+  "duplication"  -> Duplication
+  "drift"        -> Drift
+  _              -> Structure
 
 -- | The default community policy pack.
 defaultPolicyPack :: PolicyPack
