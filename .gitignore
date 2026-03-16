@@ -17,3 +17,4 @@ cabal.project.local~
 .local/
 *.swp
 *~
+_bin/
