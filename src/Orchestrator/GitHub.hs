@@ -20,7 +20,7 @@ module Orchestrator.GitHub
 
 import Control.Exception (SomeException, try)
 import Data.Word (Word8)
-import Data.Aeson (FromJSON (..), Value (..), (.:), (.:?), (.!=), withObject, eitherDecode)
+import Data.Aeson (FromJSON (..), (.:), (.:?), (.!=), withObject, eitherDecode)
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 qualified as BSC
 import Data.ByteString.Lazy qualified as LBS
@@ -201,7 +201,7 @@ isWorkflowFile name = T.isSuffixOf ".yml" name || T.isSuffixOf ".yaml" name
 decodeBase64 :: Text -> BS.ByteString
 decodeBase64 txt =
   let cleaned = filter (\c -> c /= '\n' && c /= '\r' && c /= ' ') (T.unpack txt)
-      bytes = map (fromIntegral . fromEnum) cleaned :: [Int]
+      bytes = map fromEnum cleaned :: [Int]
   in BS.pack (decode64 bytes)
   where
     decode64 :: [Int] -> [Word8]

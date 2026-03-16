@@ -1,7 +1,7 @@
 module Test.Demo (tests) where
 
 import Orchestrator.Demo
-import Orchestrator.Model (wfName, wfFileName)
+import Orchestrator.Model (wfFileName)
 import Orchestrator.Policy (defaultPolicyPack, evaluatePolicies)
 import Orchestrator.Types (findingSeverity, Severity (..))
 import Test.Tasty (TestTree, testGroup)

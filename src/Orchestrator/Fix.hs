@@ -24,7 +24,6 @@ module Orchestrator.Fix
 
 import Data.Text (Text)
 import Data.Text qualified as T
-import Orchestrator.Types
 
 -- | A single fixable issue in a workflow file.
 data FixAction = FixAction
@@ -126,7 +125,7 @@ applyFixes cfg fp content actions =
 
 -- | Render a unified-diff-like preview of fixes.
 renderFixDiff :: [FixAction] -> Text -> Text
-renderFixDiff actions content
+renderFixDiff actions _content
   | null actions = "No fixes needed for this file."
   | otherwise = T.unlines $
       [ "--- " <> T.pack (faFile (head actions)) <> " (original)"

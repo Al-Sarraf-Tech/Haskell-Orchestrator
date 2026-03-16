@@ -3,7 +3,7 @@ module Test.Config (tests) where
 import Orchestrator.Config
 import Orchestrator.Types (OrchestratorError (..))
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (testCase, (@?=), assertBool)
+import Test.Tasty.HUnit (testCase, (@?=))
 
 tests :: TestTree
 tests = testGroup "Config"

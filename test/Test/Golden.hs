@@ -1,6 +1,5 @@
 module Test.Golden (tests) where
 
-import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Orchestrator.Demo (goodWorkflow, problematicWorkflow)
 import Orchestrator.Policy (defaultPolicyPack, evaluatePolicies)

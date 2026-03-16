@@ -10,7 +10,7 @@ import Orchestrator.Validate
 import Orchestrator.Diff
 import Orchestrator.Render
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.QuickCheck (testProperty, Arbitrary (..), elements, listOf, oneof, choose, vectorOf)
+import Test.Tasty.QuickCheck (testProperty, Arbitrary (..), elements, listOf, oneof, choose)
 
 ------------------------------------------------------------------------
 -- Arbitrary instances
