@@ -64,7 +64,7 @@ jobs:
         if: ${{ matrix.ghc-preinstalled && runner.os == 'Windows' }}
         shell: pwsh
         run: |
-          $paths = @('C:\ghcup\bin', "C:\Users\$env:USERNAME\.ghcup\bin", "C:\Users\$env:USERNAME\AppData\Roaming\cabal\bin")
+          $paths = @('C:\msys64\usr\bin', 'C:\ghcup\bin', "C:\Users\$env:USERNAME\.ghcup\bin", "C:\Users\$env:USERNAME\AppData\Roaming\cabal\bin")
           foreach ($p in $paths) {
             if (Test-Path $p) { Add-Content $env:GITHUB_PATH $p }
           }
