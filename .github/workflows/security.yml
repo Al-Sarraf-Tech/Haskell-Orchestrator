@@ -16,9 +16,6 @@ concurrency:
   group: security-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  CABAL_DIR: /home/runner/.cabal
-
 jobs:
   repo-guard:
     name: Repository Context Guard
@@ -45,6 +42,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set CABAL_DIR
+        run: echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
 
       - name: Cache Cabal
         uses: actions/cache@v4
