@@ -62,8 +62,8 @@ jobs:
 
       - name: Verify standalone installation
         env:
-          LANG: en_US.UTF-8
-          LC_ALL: en_US.UTF-8
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
         run: bash scripts/verify-standalone-install.sh _bin/orchestrator
 
   packaging-check:
