@@ -10,6 +10,7 @@ module Orchestrator.Scan
   , isWorkflowFile
   ) where
 
+import Data.List (isPrefixOf)
 import System.Directory (doesDirectoryExist, doesFileExist, listDirectory)
 import System.FilePath ((</>), takeExtension, takeFileName)
 import Orchestrator.Config (ScanConfig (..))
@@ -88,8 +89,8 @@ isWorkflowFile fp =
   let ext = takeExtension fp
       name = takeFileName fp
   in ext `elem` [".yml", ".yaml"]
-     && name /= ""
-     && head name /= '.'
+     && not (null name)
+     && not ("." `isPrefixOf` name)
 
 -- Strict filterM replacement without Control.Monad dependency
 filterM' :: (a -> IO Bool) -> [a] -> IO [a]
