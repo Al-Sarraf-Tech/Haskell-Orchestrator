@@ -12,66 +12,56 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  CABAL_DIR: /home/runner/.cabal
+
 jobs:
+  repo-guard:
+    name: Repository Context Guard
+    runs-on: [self-hosted, unified-all]
+    timeout-minutes: 2
+    steps:
+      - name: Verify repository ownership
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          if [ "${{ github.repository }}" != "jalsarraf0/Haskell-Orchestrator" ] && \
+             [ "${{ github.repository }}" != "Al-Sarraf-Tech/Haskell-Orchestrator" ]; then
+            echo "::error::SECURITY VIOLATION: This workflow must only run in authorised Haskell-Orchestrator repositories."
+            echo "::error::Detected repository: ${{ github.repository }}"
+            exit 1
+          fi
+          echo "Repository context verified: ${{ github.repository }}"
+
   build:
     name: Build ${{ matrix.os-name }}-${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
+    needs: repo-guard
     timeout-minutes: 60
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, linux, x64, haskell]
+          - runner: [self-hosted, unified-all]
             os-name: linux
             arch: x86_64
             ext: ''
             archive: tar.gz
-            ghc-preinstalled: true
-          - runner: macos-15
-            os-name: macos
-            arch: arm64
-            ext: ''
-            archive: tar.gz
-            ghc-preinstalled: false
-          - runner: [self-hosted, windows, x64, haskell]
+          - runner: [self-hosted, Windows, X64, windows, haskell, unified-all]
             os-name: windows
             arch: x86_64
             ext: '.exe'
             archive: zip
-            ghc-preinstalled: true
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Haskell (GitHub-hosted)
-        if: ${{ !matrix.ghc-preinstalled }}
-        uses: haskell-actions/setup@v2
-        with:
-          ghc-version: '9.6.7'
-          cabal-version: '3.14'
-
-      - name: Setup Haskell paths (self-hosted Linux)
-        if: ${{ matrix.ghc-preinstalled && runner.os == 'Linux' }}
-        shell: bash
-        run: |
-          echo "$HOME/.ghcup/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.cabal/bin" >> "$GITHUB_PATH"
-
-      - name: Setup Haskell paths (self-hosted Windows)
-        if: ${{ matrix.ghc-preinstalled && runner.os == 'Windows' }}
-        shell: pwsh
-        run: |
-          $paths = @('C:\msys64\usr\bin', 'C:\ghcup\bin', "C:\Users\$env:USERNAME\.ghcup\bin", "C:\Users\$env:USERNAME\AppData\Roaming\cabal\bin")
-          foreach ($p in $paths) {
-            if (Test-Path $p) { Add-Content $env:GITHUB_PATH $p }
-          }
+        uses: actions/checkout@v4
 
       - name: Cache Cabal
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
+            ~/.cabal/packages
             ~/.cabal/store
             dist-newstyle
           key: release-${{ matrix.os-name }}-${{ matrix.arch }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
@@ -88,6 +78,8 @@ jobs:
       - name: Update and build (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          CABAL_DIR: C:\Users\runneruser\AppData\Roaming\cabal
         run: |
           cabal update
           cabal build exe:orchestrator -O2
@@ -167,12 +159,12 @@ jobs:
     name: Publish Release
     needs: build
     if: ${{ always() && needs.build.result != 'cancelled' }}
-    runs-on: [self-hosted, linux, haskell]
+    runs-on: [self-hosted, unified-all]
     timeout-minutes: 15
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -190,15 +182,6 @@ jobs:
           sha256sum * > "SHA256SUMS-${VERSION}.txt"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           ls -la
-
-      - name: Setup Haskell paths (self-hosted Linux)
-        shell: bash
-        run: |
-          echo "$HOME/.ghcup/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.cabal/bin" >> "$GITHUB_PATH"
-          echo "/usr/local/bin" >> "$GITHUB_PATH"
-          echo "/usr/bin" >> "$GITHUB_PATH"
-          echo "/bin" >> "$GITHUB_PATH"
 
       - name: Generate SBOM
         run: |
@@ -247,8 +230,6 @@ jobs:
             | Platform | Architecture | File |
             |----------|-------------|------|
             | Linux | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-linux-x86_64.tar.gz` |
-            | Linux | arm64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-linux-arm64.tar.gz` |
-            | macOS | Apple Silicon (arm64) | `haskell-orchestrator-${{ steps.prep.outputs.version }}-macos-arm64.tar.gz` |
             | Windows | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-windows-x86_64.zip` |
 
             ### Verification

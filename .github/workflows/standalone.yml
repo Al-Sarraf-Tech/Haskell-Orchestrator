@@ -13,25 +13,42 @@ concurrency:
   group: standalone-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CABAL_DIR: /home/runner/.cabal
+
 jobs:
+  repo-guard:
+    name: Repository Context Guard
+    runs-on: [self-hosted, unified-all]
+    timeout-minutes: 2
+    steps:
+      - name: Verify repository ownership
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          if [ "${{ github.repository }}" != "jalsarraf0/Haskell-Orchestrator" ] && \
+             [ "${{ github.repository }}" != "Al-Sarraf-Tech/Haskell-Orchestrator" ]; then
+            echo "::error::SECURITY VIOLATION: This workflow must only run in authorised Haskell-Orchestrator repositories."
+            echo "::error::Detected repository: ${{ github.repository }}"
+            exit 1
+          fi
+          echo "Repository context verified: ${{ github.repository }}"
+
   standalone-binary:
     name: Standalone Binary Verification
-    runs-on: [self-hosted, linux, haskell]
+    runs-on: [self-hosted, unified-all]
+    needs: repo-guard
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Haskell
-        uses: haskell-actions/setup@v2
-        with:
-          ghc-version: '9.6.7'
-          cabal-version: '3.14'
+        uses: actions/checkout@v4
 
       - name: Cache Cabal store
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
-          path: ~/.cabal/store
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
           key: ${{ runner.os }}-standalone-${{ hashFiles('orchestrator.cabal', 'cabal.project') }}
           restore-keys: |
             ${{ runner.os }}-standalone-
@@ -48,11 +65,12 @@ jobs:
 
   packaging-check:
     name: Packaging Independence Check
-    runs-on: [self-hosted, linux, haskell]
+    runs-on: [self-hosted, unified-all]
+    needs: repo-guard
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Verify no cross-edition dependencies
         run: |

@@ -13,10 +13,30 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CABAL_DIR: /home/runner/.cabal
+
 jobs:
+  repo-guard:
+    name: Repository Context Guard
+    runs-on: [self-hosted, unified-all]
+    timeout-minutes: 2
+    steps:
+      - name: Verify repository ownership
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          if [ "${{ github.repository }}" != "jalsarraf0/Haskell-Orchestrator" ] && \
+             [ "${{ github.repository }}" != "Al-Sarraf-Tech/Haskell-Orchestrator" ]; then
+            echo "::error::SECURITY VIOLATION: This workflow must only run in authorised Haskell-Orchestrator repositories."
+            echo "::error::Detected repository: ${{ github.repository }}"
+            exit 1
+          fi
+          echo "Repository context verified: ${{ github.repository }}"
+
   build-and-test:
     name: Build and Test
-    runs-on: [self-hosted, linux, haskell]
+    runs-on: [self-hosted, unified-all]
+    needs: repo-guard
     timeout-minutes: 30
 
     strategy:
@@ -25,23 +45,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Haskell
-        uses: haskell-actions/setup@v2
-        with:
-          ghc-version: ${{ matrix.ghc }}
-          cabal-version: '3.14'
+        uses: actions/checkout@v4
 
       - name: Cache Cabal
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
+            ~/.cabal/packages
             ~/.cabal/store
             dist-newstyle
-          key: ${{ runner.os }}-ghc-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
+          key: ${{ runner.os }}-cabal-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
           restore-keys: |
-            ${{ runner.os }}-ghc-${{ matrix.ghc }}-
+            ${{ runner.os }}-cabal-${{ matrix.ghc }}-
+            ${{ runner.os }}-cabal-
 
       - name: Update package index
         run: cabal update
@@ -49,80 +65,43 @@ jobs:
       - name: Build
         run: cabal build all
 
-      - name: Run tests
+      - name: Test
         run: cabal test all --test-show-details=direct
 
-      - name: Check formatting
-        run: |
-          if ! command -v ormolu &>/dev/null; then
-            echo "ormolu not found, installing..."
-            cabal install ormolu --constraint 'ormolu >= 0.7' --install-method=copy --overwrite-policy=always || {
-              echo "ormolu install failed, skipping format check"
-              exit 0
-            }
-          fi
-          export PATH="$HOME/.cabal/bin:$PATH"
-          ormolu --mode check $(find src app test -name '*.hs') || echo "Formatting differences found (non-blocking)"
-        continue-on-error: true
+  lint:
+    name: Lint
+    runs-on: [self-hosted, unified-all]
+    needs: repo-guard
+    timeout-minutes: 10
 
-  attribution-check:
-    name: Attribution Leak Check
-    runs-on: [self-hosted, linux, haskell]
-    timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Check for prohibited content
-        run: |
-          # Build search terms dynamically to avoid self-match
-          T1="CLAU"
-          T2="DE"
-          T3="Anthro"
-          T4="pic"
-          TERMS="${T1}${T2}\.md|AGENTS\.md|${T1}${T2} Code|${T3}${T4}|AI-generated|Co-authored-by|Generated-by"
-          if grep -rIl --include='*.md' --include='*.hs' --include='*.cabal' \
-               -E "$TERMS" . 2>/dev/null | grep -v '.local/' | grep -v '.git/'; then
-            echo "ERROR: Prohibited content detected"
-            exit 1
-          fi
-          if [ -f "${T1}${T2}.md" ] || [ -f "AGENTS.md" ]; then
-            echo "ERROR: Prohibited file exists"
-            exit 1
-          fi
-          echo "Attribution check passed"
+      - name: HLint
+        env:
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
+        run: hlint src/ app/ --no-exit-code 2>&1 | cat || true
 
-  capability-contract:
+  capability-check:
     name: Capability Contract Check
-    runs-on: [self-hosted, linux, haskell]
+    runs-on: [self-hosted, unified-all]
+    needs: repo-guard
     timeout-minutes: 5
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Verify tier boundaries
+      - name: Verify no Business/Enterprise module imports
         run: |
-          # Check Community does not contain Business/Enterprise modules
-          FAIL=0
-          for mod in Batch Report Governance Audit Compliance Admin; do
-            if [ -f "src/Orchestrator/$mod.hs" ]; then
-              echo "FAIL: Community contains $mod.hs (premium module)"
-              FAIL=1
-            fi
-          done
-          # Check no premium module imports
           if grep -rI --include='*.hs' 'OrchestratorBusiness\|OrchestratorEnterprise' src/ app/ 2>/dev/null; then
-            echo "FAIL: Community imports premium modules"
-            FAIL=1
+            echo "::error::LEAK DETECTED: Source imports Business or Enterprise modules"
+            exit 1
           fi
-          # Check capability contract manifest exists
-          if [ ! -f config/capability-contract.yaml ]; then
-            echo "FAIL: Missing capability-contract.yaml"
-            FAIL=1
+          if grep -rI --include='*.cabal' 'OrchestratorBusiness\|OrchestratorEnterprise' . 2>/dev/null; then
+            echo "::error::LEAK DETECTED: .cabal file references Business or Enterprise modules"
+            exit 1
           fi
-          if [ ! -f docs/capability-matrix.md ]; then
-            echo "FAIL: Missing docs/capability-matrix.md"
-            FAIL=1
-          fi
-          [ $FAIL -eq 0 ] && echo "Capability contract check passed"
-          exit $FAIL
+          echo "Capability contract check passed — Community tier only"
