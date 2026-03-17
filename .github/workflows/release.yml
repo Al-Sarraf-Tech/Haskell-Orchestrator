@@ -39,7 +39,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, unified-all]
+          - runner: [self-hosted, unified-all, haskell]
             os-name: linux
             arch: x86_64
             ext: ''

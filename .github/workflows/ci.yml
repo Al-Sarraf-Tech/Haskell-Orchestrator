@@ -32,7 +32,7 @@ jobs:
 
   build-and-test:
     name: Build and Test
-    runs-on: [self-hosted, unified-all]
+    runs-on: [self-hosted, unified-all, haskell]
     needs: repo-guard
     timeout-minutes: 30
 

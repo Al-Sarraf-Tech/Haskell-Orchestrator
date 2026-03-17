@@ -35,7 +35,7 @@ jobs:
 
   dependency-audit:
     name: Dependency Audit
-    runs-on: [self-hosted, unified-all]
+    runs-on: [self-hosted, unified-all, haskell]
     needs: repo-guard
     timeout-minutes: 15
 
