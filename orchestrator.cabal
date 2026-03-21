@@ -1,11 +1,12 @@
 cabal-version:   3.0
 name:            orchestrator
-version:         2.0.0
-synopsis:        GitHub Actions workflow standardization and validation tool
+version:         2.5.0
+synopsis:        GitHub Actions workflow analysis, simulation, and governance tool
 description:
   Haskell Orchestrator scans GitHub Actions workflows, parses them into a typed
-  domain model, validates correctness and policy compliance, detects drift and
-  duplication, and generates deterministic remediation plans.
+  domain model, validates correctness and policy compliance, simulates execution,
+  computes minimum permissions, analyzes action health, and generates
+  deterministic remediation plans — with a built-in web dashboard.
   .
   Designed for DevOps engineers, platform teams, and security-minded operators
   who need to maintain consistent, secure CI/CD workflows across repositories.
@@ -35,15 +36,23 @@ library
   hs-source-dirs:   src
   exposed-modules:
     Orchestrator
+    Orchestrator.Actions.Catalog
+    Orchestrator.Actions.Pin
     Orchestrator.Baseline
+    Orchestrator.Changelog
+    Orchestrator.Complexity
     Orchestrator.Config
     Orchestrator.Demo
     Orchestrator.Diff
     Orchestrator.Fix
+    Orchestrator.Formatter
     Orchestrator.GitHub
     Orchestrator.Graph
+    Orchestrator.Hook
+    Orchestrator.LSP
     Orchestrator.Model
     Orchestrator.Parser
+    Orchestrator.Permissions.Minimum
     Orchestrator.Policy
     Orchestrator.Policy.Extended
     Orchestrator.Render
@@ -56,7 +65,13 @@ library
     Orchestrator.Rules.Matrix
     Orchestrator.Rules.Reuse
     Orchestrator.Scan
+    Orchestrator.Secrets
+    Orchestrator.Simulate
+    Orchestrator.Simulate.Conditions
+    Orchestrator.Simulate.Matrix
+    Orchestrator.Simulate.Types
     Orchestrator.Types
+    Orchestrator.UI
     Orchestrator.Validate
   build-depends:
     , aeson           >=2.1   && <2.3
@@ -69,6 +84,7 @@ library
     , http-client-tls  >=0.3  && <0.4
     , http-types       >=0.12 && <0.13
     , mtl              >=2.3  && <2.4
+    , process          >=1.6  && <1.8
     , text             >=2.0  && <2.2
     , time             >=1.12 && <1.15
     , yaml             >=0.11 && <0.12
