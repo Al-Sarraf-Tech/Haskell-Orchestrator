@@ -17,20 +17,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  repo-guard:
+    name: Repository Context Guard
+    runs-on: [self-hosted, unified-all]
+    timeout-minutes: 2
+    steps:
+      - name: Verify repository ownership
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          if [ "${{ github.repository }}" != "jalsarraf0/Haskell-Orchestrator" ] && \
+             [ "${{ github.repository }}" != "Al-Sarraf-Tech/Haskell-Orchestrator" ]; then
+            echo "::error::SECURITY VIOLATION: This workflow must only run in authorised Haskell-Orchestrator repositories."
+            echo "::error::Detected repository: ${{ github.repository }}"
+            exit 1
+          fi
+          echo "Repository context verified: ${{ github.repository }}"
+
   dependency-audit:
     name: Dependency Audit
-    runs-on: [self-hosted, linux, haskell]
+    runs-on: [self-hosted, unified-all]
+    needs: repo-guard
     timeout-minutes: 15
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Setup Haskell
-        uses: haskell-actions/setup@v2
+      - name: Set CABAL_DIR
+        run: echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
+
+      - name: Cache Cabal
+        uses: actions/cache@v4
         with:
-          ghc-version: '9.6.7'
-          cabal-version: '3.14'
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+          key: ${{ runner.os }}-cabal-security-${{ hashFiles('**/*.cabal', 'cabal.project') }}
+          restore-keys: |
+            ${{ runner.os }}-cabal-security-
+            ${{ runner.os }}-cabal-
 
       - name: Update index
         run: cabal update
@@ -46,32 +71,28 @@ jobs:
 
   secret-scan:
     name: Secret Scan
-    runs-on: [self-hosted, linux, haskell]
+    runs-on: [self-hosted, unified-all]
+    needs: repo-guard
     timeout-minutes: 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install and run Gitleaks
-        run: |
-          GITLEAKS_VERSION="8.24.3"
-          if ! command -v gitleaks &>/dev/null; then
-            curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar xz -C /tmp
-            sudo mv /tmp/gitleaks /usr/local/bin/ || mv /tmp/gitleaks "$HOME/.local/bin/"
-          fi
-          gitleaks detect --source . --verbose --exit-code 1
+      - name: Gitleaks scan
+        run: gitleaks detect --source=. --no-banner --exit-code=1
 
   attribution-check:
     name: Attribution Check
-    runs-on: [self-hosted, linux, haskell]
+    runs-on: [self-hosted, unified-all]
+    needs: repo-guard
     timeout-minutes: 5
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Verify no prohibited content
         run: |
