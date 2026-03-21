@@ -50,12 +50,15 @@ renderFindingsJSON fs =
 
 findingToJSON :: Finding -> Aeson.Value
 findingToJSON f = object
-  [ "severity"    .= show (findingSeverity f)
-  , "category"    .= show (findingCategory f)
-  , "rule_id"     .= findingRuleId f
-  , "message"     .= findingMessage f
-  , "file"        .= T.pack (findingFile f)
-  , "remediation" .= findingRemediation f
+  [ "severity"      .= show (findingSeverity f)
+  , "category"      .= show (findingCategory f)
+  , "rule_id"       .= findingRuleId f
+  , "message"       .= findingMessage f
+  , "file"          .= T.pack (findingFile f)
+  , "remediation"   .= findingRemediation f
+  , "auto_fixable"  .= findingAutoFixable f
+  , "effort"        .= fmap show (findingEffort f)
+  , "links"         .= findingLinks f
   ]
 
 -- | Render a complete scan result.

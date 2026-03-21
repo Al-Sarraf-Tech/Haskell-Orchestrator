@@ -225,29 +225,29 @@ validationEdgeCases = testGroup "Validation Edge Cases"
 diffEdgeCases :: TestTree
 diffEdgeCases = testGroup "Diff Edge Cases"
   [ testCase "Plan with only Info findings has zero steps" $ do
-      let findings = replicate 10 (Finding Info Naming "NAME-001" "info" "f.yml" Nothing Nothing)
+      let findings = replicate 10 (Finding Info Naming "NAME-001" "info" "f.yml" Nothing Nothing False Nothing [])
           plan = generatePlan (LocalPath ".") findings
       length (planSteps plan) @?= 0
 
   , testCase "Plan with mixed severities only includes Warning+" $ do
       let findings =
-            [ Finding Info Naming "N1" "info" "f.yml" Nothing Nothing
-            , Finding Warning Security "S1" "warn" "f.yml" Nothing (Just "fix")
-            , Finding Error Permissions "P1" "err" "f.yml" Nothing (Just "fix")
-            , Finding Critical Security "S2" "crit" "f.yml" Nothing (Just "fix")
+            [ Finding Info Naming "N1" "info" "f.yml" Nothing Nothing False Nothing []
+            , Finding Warning Security "S1" "warn" "f.yml" Nothing (Just "fix") False Nothing []
+            , Finding Error Permissions "P1" "err" "f.yml" Nothing (Just "fix") False Nothing []
+            , Finding Critical Security "S2" "crit" "f.yml" Nothing (Just "fix") False Nothing []
             ]
           plan = generatePlan (LocalPath ".") findings
       assertBool "Should have 3 steps (Warning+)" (length (planSteps plan) == 3)
 
   , testCase "Plan with finding that has no remediation still creates step" $ do
-      let findings = [Finding Error Security "S1" "bad" "f.yml" Nothing Nothing]
+      let findings = [Finding Error Security "S1" "bad" "f.yml" Nothing Nothing False Nothing []]
           plan = generatePlan (LocalPath ".") findings
       length (planSteps plan) @?= 1
 
   , testCase "Plan steps are ordered by step number" $ do
       let findings =
-            [ Finding Error Security "S1" "first" "f.yml" Nothing Nothing
-            , Finding Warning Permissions "P1" "second" "f.yml" Nothing Nothing
+            [ Finding Error Security "S1" "first" "f.yml" Nothing Nothing False Nothing []
+            , Finding Warning Permissions "P1" "second" "f.yml" Nothing Nothing False Nothing []
             ]
           plan = generatePlan (LocalPath ".") findings
           orders = map remStepOrder (planSteps plan)
@@ -265,7 +265,7 @@ renderEdgeCases = testGroup "Render Edge Cases"
       assertBool "Should produce some output" (not $ T.null output)
 
   , testCase "Render single finding" $ do
-      let f = Finding Error Security "SEC-001" "test finding" "ci.yml" Nothing Nothing
+      let f = Finding Error Security "SEC-001" "test finding" "ci.yml" Nothing Nothing False Nothing []
           output = renderFindings [f]
       assertBool "Should contain rule ID" ("SEC-001" `T.isInfixOf` output)
       assertBool "Should contain severity" ("Error" `T.isInfixOf` output || "ERROR" `T.isInfixOf` output)
@@ -275,13 +275,13 @@ renderEdgeCases = testGroup "Render Edge Cases"
       assertBool "Should produce some output for empty findings" (T.length summary >= 0)
 
   , testCase "Render findings JSON produces valid-looking output" $ do
-      let f = Finding Warning Naming "NAME-001" "test" "f.yml" Nothing Nothing
+      let f = Finding Warning Naming "NAME-001" "test" "f.yml" Nothing Nothing False Nothing []
           output = renderFindingsJSON [f]
       assertBool "Should contain JSON bracket" ("[" `T.isInfixOf` output)
       assertBool "Should contain rule_id" ("NAME-001" `T.isInfixOf` output)
 
   , testCase "Render findings with special characters in message" $ do
-      let f = Finding Warning Naming "NAME-001" "has \"quotes\" and <html>" "f.yml" Nothing Nothing
+      let f = Finding Warning Naming "NAME-001" "has \"quotes\" and <html>" "f.yml" Nothing Nothing False Nothing []
           output = renderFindings [f]
       assertBool "Should not crash" (not $ T.null output)
   ]

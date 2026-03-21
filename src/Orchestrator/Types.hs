@@ -1,7 +1,9 @@
 -- | Core types shared across all Orchestrator modules.
 module Orchestrator.Types
   ( Severity (..)
+  , Effort (..)
   , Finding (..)
+  , mkFinding'
   , FindingCategory (..)
   , ScanTarget (..)
   , ScanResult (..)
@@ -34,6 +36,10 @@ data FindingCategory
   | Drift
   deriving stock (Eq, Ord, Show, Read, Enum, Bounded)
 
+-- | Effort level for remediation.
+data Effort = LowEffort | MediumEffort | HighEffort
+  deriving stock (Eq, Ord, Show, Read, Enum, Bounded)
+
 -- | A single finding from policy validation.
 data Finding = Finding
   { findingSeverity    :: !Severity
@@ -43,6 +49,9 @@ data Finding = Finding
   , findingFile        :: !FilePath
   , findingLocation    :: !(Maybe Text)
   , findingRemediation :: !(Maybe Text)
+  , findingAutoFixable :: !Bool
+  , findingEffort      :: !(Maybe Effort)
+  , findingLinks       :: ![Text]
   } deriving stock (Eq, Show)
 
 -- | What to scan.
@@ -74,6 +83,23 @@ data Plan = Plan
   , planSteps   :: ![RemediationStep]
   , planSummary :: !Text
   } deriving stock (Show)
+
+-- | Smart constructor for Finding with defaults for new fields.
+-- Use this when autoFixable, effort, and links are not relevant.
+mkFinding' :: Severity -> FindingCategory -> Text -> Text -> FilePath
+           -> Maybe Text -> Maybe Text -> Finding
+mkFinding' sev cat rid msg fp loc rem' = Finding
+  { findingSeverity = sev
+  , findingCategory = cat
+  , findingRuleId = rid
+  , findingMessage = msg
+  , findingFile = fp
+  , findingLocation = loc
+  , findingRemediation = rem'
+  , findingAutoFixable = False
+  , findingEffort = Nothing
+  , findingLinks = []
+  }
 
 -- | Errors that can occur during orchestrator operations.
 data OrchestratorError

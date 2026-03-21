@@ -2,6 +2,7 @@
 module CLI
   ( Command (..)
   , Options (..)
+  , OutputMode (..)
   , parseOptions
   ) where
 
@@ -9,12 +10,17 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Options.Applicative
 
+-- | Output format selection.
+data OutputMode = OutText | OutJSON | OutSarif | OutMarkdown
+  deriving stock (Eq, Show)
+
 -- | Top-level CLI options.
 data Options = Options
   { optConfigFile :: !(Maybe FilePath)
   , optVerbose    :: !Bool
-  , optJSON       :: !Bool
+  , optOutput     :: !OutputMode
   , optJobs       :: !(Maybe Int)
+  , optBaseline   :: !(Maybe FilePath)
   , optCommand    :: !Command
   } deriving stock (Show)
 
@@ -24,12 +30,15 @@ data Command
   | CmdValidate !FilePath
   | CmdDiff !FilePath
   | CmdPlan !FilePath
+  | CmdFix !FilePath !Bool         -- ^ path, write mode
   | CmdDemo
   | CmdDoctor
   | CmdInit
   | CmdExplain !Text
   | CmdVerify
   | CmdRules
+  | CmdBaseline !FilePath          -- ^ save baseline
+  | CmdUpgradePath !FilePath       -- ^ show upgrade path
   deriving stock (Show)
 
 parseOptions :: ParserInfo Options
@@ -38,7 +47,8 @@ parseOptions = info (optionsParser <**> helper)
     <> header "orchestrator — GitHub Actions workflow standardization and governance"
     <> progDesc "Discover workflow sprawl, detect drift, validate against policies, \
                 \and generate remediation plans. Run 'orchestrator demo' for a quick tour."
-    <> footer "Community Edition. For multi-repo batch scanning, see Business edition. \
+    <> footer "Community Edition v2.0.0 — 21 built-in rules. \
+              \For multi-repo batch scanning, see Business edition. \
               \For org-wide governance, see Enterprise edition."
   )
 
@@ -55,23 +65,32 @@ optionsParser = Options
         <> short 'v'
         <> help "Enable verbose output"
         )
-  <*> switch
-        ( long "json"
-        <> help "Output results as JSON"
-        )
+  <*> outputModeParser
   <*> optional (option auto
         ( long "jobs"
         <> short 'j'
         <> metavar "N"
         <> help "Number of parallel workers (default: conservative)"
         ))
+  <*> optional (strOption
+        ( long "baseline"
+        <> metavar "FILE"
+        <> help "Compare against a saved baseline (show only new findings)"
+        ))
   <*> commandParser
+
+outputModeParser :: Parser OutputMode
+outputModeParser =
+  flag' OutJSON (long "json" <> help "Output results as JSON")
+  <|> flag' OutSarif (long "sarif" <> help "Output results as SARIF v2.1.0")
+  <|> flag' OutMarkdown (long "markdown" <> long "md" <> help "Output results as Markdown")
+  <|> pure OutText
 
 commandParser :: Parser Command
 commandParser = subparser
   ( command "scan"
       (info (CmdScan <$> pathArg)
-        (progDesc "Scan workflows and evaluate policies"))
+        (progDesc "Scan workflows and evaluate policies (21 rules)"))
   <> command "validate"
       (info (CmdValidate <$> pathArg)
         (progDesc "Validate workflow structure"))
@@ -81,6 +100,9 @@ commandParser = subparser
   <> command "plan"
       (info (CmdPlan <$> pathArg)
         (progDesc "Generate a remediation plan"))
+  <> command "fix"
+      (info (CmdFix <$> pathArg <*> switch (long "write" <> help "Actually modify files (default: dry-run)"))
+        (progDesc "Auto-fix safe, mechanical issues (permissions, timeouts, concurrency)"))
   <> command "demo"
       (info (pure CmdDemo)
         (progDesc "Run demo with synthetic fixtures (no external access)"))
@@ -99,6 +121,12 @@ commandParser = subparser
   <> command "verify"
       (info (pure CmdVerify)
         (progDesc "Verify the current configuration"))
+  <> command "baseline"
+      (info (CmdBaseline <$> pathArg)
+        (progDesc "Save current findings as a baseline for future comparison"))
+  <> command "upgrade-path"
+      (info (CmdUpgradePath <$> pathArg)
+        (progDesc "Show what Business/Enterprise editions would add"))
   )
 
 pathArg :: Parser FilePath

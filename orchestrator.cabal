@@ -1,6 +1,6 @@
 cabal-version:   3.0
 name:            orchestrator
-version:         1.2.1
+version:         2.0.0
 synopsis:        GitHub Actions workflow standardization and validation tool
 description:
   Haskell Orchestrator scans GitHub Actions workflows, parses them into a typed
@@ -35,18 +35,29 @@ library
   hs-source-dirs:   src
   exposed-modules:
     Orchestrator
+    Orchestrator.Baseline
+    Orchestrator.Config
+    Orchestrator.Demo
+    Orchestrator.Diff
+    Orchestrator.Fix
+    Orchestrator.GitHub
+    Orchestrator.Graph
     Orchestrator.Model
     Orchestrator.Parser
     Orchestrator.Policy
-    Orchestrator.Validate
-    Orchestrator.Diff
+    Orchestrator.Policy.Extended
     Orchestrator.Render
-    Orchestrator.Config
-    Orchestrator.Demo
+    Orchestrator.Render.Markdown
+    Orchestrator.Render.Sarif
+    Orchestrator.Render.Upgrade
+    Orchestrator.Rules.Composite
+    Orchestrator.Rules.Duplicate
+    Orchestrator.Rules.Environment
+    Orchestrator.Rules.Matrix
+    Orchestrator.Rules.Reuse
     Orchestrator.Scan
-    Orchestrator.GitHub
-    Orchestrator.Fix
     Orchestrator.Types
+    Orchestrator.Validate
   build-depends:
     , aeson           >=2.1   && <2.3
     , base            >=4.18  && <4.20

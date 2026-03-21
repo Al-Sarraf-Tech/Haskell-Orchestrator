@@ -98,7 +98,7 @@ mkWorkflowWithAction action = Workflow
   }
 
 mkTestFinding :: Severity -> Finding
-mkTestFinding sev = Finding sev Permissions "TEST" "test" "test.yml" Nothing Nothing
+mkTestFinding sev = Finding sev Permissions "TEST" "test" "test.yml" Nothing Nothing False Nothing []
 
 mkTestFindingCat :: FindingCategory -> Finding
-mkTestFindingCat cat = Finding Warning cat "TEST" "test" "test.yml" Nothing Nothing
+mkTestFindingCat cat = Finding Warning cat "TEST" "test" "test.yml" Nothing Nothing False Nothing []

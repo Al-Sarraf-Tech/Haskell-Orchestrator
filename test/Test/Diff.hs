@@ -14,15 +14,15 @@ tests = testGroup "Diff"
 
   , testCase "Findings produce steps" $ do
       let findings =
-            [ Finding Warning Permissions "PERM-001" "test" "f.yml" Nothing (Just "fix it")
-            , Finding Error Security "SEC-001" "bad" "f.yml" Nothing Nothing
+            [ Finding Warning Permissions "PERM-001" "test" "f.yml" Nothing (Just "fix it") False Nothing []
+            , Finding Error Security "SEC-001" "bad" "f.yml" Nothing Nothing False Nothing []
             ]
           plan = generatePlan (LocalPath "/test") findings
       length (planSteps plan) @?= 2
 
   , testCase "Info findings excluded from plan" $ do
       let findings =
-            [ Finding Info Naming "NAME-001" "info only" "f.yml" Nothing Nothing ]
+            [ Finding Info Naming "NAME-001" "info only" "f.yml" Nothing Nothing False Nothing [] ]
           plan = generatePlan (LocalPath "/test") findings
       length (planSteps plan) @?= 0
 
