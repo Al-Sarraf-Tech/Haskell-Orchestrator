@@ -15,7 +15,7 @@ concurrency:
 jobs:
   repo-guard:
     name: Repository Context Guard
-    runs-on: [self-hosted, Linux, unified-all]
+    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
     timeout-minutes: 2
     steps:
       - name: Verify repository ownership
@@ -40,7 +40,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, unified-all]
+          - runner: [self-hosted, Linux, X64, haskell, unified-all]
             os-name: linux
             arch: x86_64
             ext: ''
@@ -182,7 +182,7 @@ jobs:
     name: Publish Release
     needs: build
     if: ${{ always() && needs.build.result != 'cancelled' }}
-    runs-on: [self-hosted, Linux, unified-all]
+    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
     environment:
       name: release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}

@@ -16,7 +16,7 @@ concurrency:
 jobs:
   repo-guard:
     name: Repository Context Guard
-    runs-on: [self-hosted, unified-all]
+    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
     timeout-minutes: 2
     steps:
       - name: Verify repository ownership
@@ -32,7 +32,7 @@ jobs:
 
   build-and-test:
     name: Build and Test
-    runs-on: [self-hosted, unified-all]
+    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
     needs: repo-guard
     timeout-minutes: 30
 
@@ -70,7 +70,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: [self-hosted, unified-all]
+    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
     needs: repo-guard
     timeout-minutes: 10
 
@@ -86,7 +86,7 @@ jobs:
 
   capability-check:
     name: Capability Contract Check
-    runs-on: [self-hosted, unified-all]
+    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
     needs: repo-guard
     timeout-minutes: 5
 
