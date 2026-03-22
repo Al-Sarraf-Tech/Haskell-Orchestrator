@@ -347,15 +347,19 @@ missingTimeoutRule = PolicyRule
   , ruleSeverity = Warning
   , ruleCategory = Structure
   , ruleCheck = \wf ->
-      concatMap (\j -> case jobTimeoutMin j of
-        Nothing ->
-          [ mkFinding Warning Structure "RES-001"
-              ("Job '" <> jobId j <> "' has no timeout-minutes. \
-               \Runaway jobs can consume resources indefinitely.")
-              (wfFileName wf)
-              (Just "Add 'timeout-minutes:' to bound execution time.")
-          ]
-        Just _ -> []
+      concatMap (\j ->
+        -- Skip reusable workflow caller jobs (uses: at job level).
+        -- These have no steps and inherit the callee's timeout.
+        if null (jobSteps j) then []
+        else case jobTimeoutMin j of
+          Nothing ->
+            [ mkFinding Warning Structure "RES-001"
+                ("Job '" <> jobId j <> "' has no timeout-minutes. \
+                 \Runaway jobs can consume resources indefinitely.")
+                (wfFileName wf)
+                (Just "Add 'timeout-minutes:' to bound execution time.")
+            ]
+          Just _ -> []
       ) (wfJobs wf)
   }
 
