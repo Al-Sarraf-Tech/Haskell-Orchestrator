@@ -1,5 +1,6 @@
 # Haskell Orchestrator
 
+[![Verified by Haskell Orchestrator Enterprise](https://img.shields.io/badge/Verified%20by-Haskell%20Orchestrator%20Enterprise-blueviolet)](https://github.com/jalsarraf0/Haskell-Orchestrator)
 [![CI](https://github.com/jalsarraf0/Haskell-Orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/jalsarraf0/Haskell-Orchestrator/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github)](https://github.com/sponsors/jalsarraf0)
