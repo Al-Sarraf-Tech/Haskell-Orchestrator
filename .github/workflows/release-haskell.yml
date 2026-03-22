@@ -44,15 +44,30 @@ jobs:
             arch: x86_64
             ext: ''
             archive: tar.gz
+            ghc-preinstalled: true
+          - runner: macos-15
+            os-name: macos
+            arch: arm64
+            ext: ''
+            archive: tar.gz
+            ghc-preinstalled: false
           - runner: [self-hosted, Windows, X64, windows, haskell, unified-all]
             os-name: windows
             arch: x86_64
             ext: '.exe'
             archive: zip
+            ghc-preinstalled: true
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Haskell (GitHub-hosted)
+        if: ${{ !matrix.ghc-preinstalled }}
+        uses: haskell-actions/setup@f9150cb1d140e9a9271700670baa38991e6fa25c # v2
+        with:
+          ghc-version: '9.6.7'
+          cabal-version: '3.14'
 
       - name: Set CABAL_DIR
         if: runner.os != 'Windows'
@@ -232,6 +247,7 @@ jobs:
             | Platform | Architecture | File |
             |----------|-------------|------|
             | Linux | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-linux-x86_64.tar.gz` |
+            | macOS | Apple Silicon (arm64) | `haskell-orchestrator-${{ steps.prep.outputs.version }}-macos-arm64.tar.gz` |
             | Windows | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-windows-x86_64.zip` |
 
             ### Verification

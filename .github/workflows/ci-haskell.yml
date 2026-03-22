@@ -68,6 +68,43 @@ jobs:
       - name: Test
         run: cabal test all --test-show-details=direct
 
+  build-macos:
+    name: Build and Test (macOS)
+    runs-on: macos-15
+    needs: repo-guard
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell
+        uses: haskell-actions/setup@f9150cb1d140e9a9271700670baa38991e6fa25c # v2
+        with:
+          ghc-version: '9.6.7'
+          cabal-version: '3.14'
+
+      - name: Cache Cabal
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
+          key: macos-cabal-9.6.7-${{ hashFiles('**/*.cabal', 'cabal.project') }}
+          restore-keys: |
+            macos-cabal-9.6.7-
+            macos-cabal-
+
+      - name: Update package index
+        run: cabal update
+
+      - name: Build
+        run: cabal build all
+
+      - name: Test
+        run: cabal test all --test-show-details=direct
+
   lint:
     name: Lint
     runs-on: [self-hosted, unified-all]
