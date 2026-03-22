@@ -46,7 +46,10 @@ matrixFailFastRule = PolicyRule
         let isMatrix = case jobRunsOn j of
               MatrixRunner _ -> True
               _ -> hasMatrixRefs j
-        in if isMatrix && not (hasFailFastRef wf)
+            hasFF = case jobFailFast j of
+              Just _  -> True
+              Nothing -> False
+        in if isMatrix && not hasFF
            then [ Finding
                     { findingSeverity = Info
                     , findingCategory = Structure
@@ -87,8 +90,11 @@ stepTexts s = concat
   ]
 
 -- | Check for matrix explosion risk indicators.
+-- Skip if the matrix uses only 'include:' entries (no cross-product).
 checkMatrixExplosion :: Workflow -> Job -> [Finding]
-checkMatrixExplosion wf j =
+checkMatrixExplosion wf j
+  | jobMatrixIncludeOnly j = []
+  | otherwise =
   let refs = countMatrixDimensions j
   in if refs >= 3
      then [ Finding
@@ -140,7 +146,3 @@ extractMatrixDims t = go t []
              else go rest (dim : acc)
       | otherwise = acc
 
--- | Check if the workflow YAML likely contains fail-fast setting.
--- This is a heuristic since we don't parse strategy blocks directly.
-hasFailFastRef :: Workflow -> Bool
-hasFailFastRef _ = False  -- Conservative: always flag

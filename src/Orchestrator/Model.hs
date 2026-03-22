@@ -86,6 +86,8 @@ data Job = Job
   , jobEnv          :: !EnvMap
   , jobIf           :: !(Maybe Text)
   , jobTimeoutMin   :: !(Maybe Int)
+  , jobFailFast     :: !(Maybe Bool)
+  , jobMatrixIncludeOnly :: !Bool
   } deriving stock (Eq, Show)
 
 -- | A complete GitHub Actions workflow.

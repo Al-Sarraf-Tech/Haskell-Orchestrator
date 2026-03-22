@@ -60,6 +60,8 @@ minimalJob jid = Job
   , jobEnv = Map.empty
   , jobIf = Nothing
   , jobTimeoutMin = Nothing
+  , jobFailFast = Nothing
+  , jobMatrixIncludeOnly = False
   }
 
 minimalStep :: Step

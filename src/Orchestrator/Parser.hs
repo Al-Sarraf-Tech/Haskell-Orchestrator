@@ -136,7 +136,9 @@ parseJobs fp obj =
     Just _ -> Left $ ParseError fp "'jobs' must be a mapping"
 
 parseJob :: Text -> Value -> Job
-parseJob jid (Object obj) = Job
+parseJob jid (Object obj) =
+  let (ff, inclOnly) = parseStrategy $ KM.lookup "strategy" obj
+  in Job
   { jobId = jid
   , jobName = extractText "name" obj
   , jobRunsOn = parseRunner $ KM.lookup "runs-on" obj
@@ -149,8 +151,25 @@ parseJob jid (Object obj) = Job
   , jobTimeoutMin = case KM.lookup "timeout-minutes" obj of
       Just (Number n) -> Just (round n)
       _               -> Nothing
+  , jobFailFast = ff
+  , jobMatrixIncludeOnly = inclOnly
   }
-parseJob jid _ = Job jid Nothing (StandardRunner "ubuntu-latest") [] Nothing [] Nothing Map.empty Nothing Nothing
+parseJob jid _ = Job jid Nothing (StandardRunner "ubuntu-latest") [] Nothing [] Nothing Map.empty Nothing Nothing Nothing False
+
+-- | Parse the strategy block, extracting fail-fast and whether the matrix
+-- uses only 'include:' entries (no cross-product dimensions).
+parseStrategy :: Maybe Value -> (Maybe Bool, Bool)
+parseStrategy (Just (Object strat)) =
+  let ff = case KM.lookup "fail-fast" strat of
+        Just (Bool b) -> Just b
+        _             -> Nothing
+      inclOnly = case KM.lookup "matrix" strat of
+        Just (Object mat) ->
+          let keys = map Key.toText $ KM.keys mat
+          in keys == ["include"]
+        _ -> False
+  in (ff, inclOnly)
+parseStrategy _ = (Nothing, False)
 
 parseRunner :: Maybe Value -> RunnerSpec
 parseRunner (Just (String s))

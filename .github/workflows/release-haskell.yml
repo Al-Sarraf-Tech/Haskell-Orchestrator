@@ -183,6 +183,7 @@ jobs:
     needs: build
     if: ${{ always() && needs.build.result != 'cancelled' }}
     runs-on: [self-hosted, Linux, unified-all]
+    environment: release
     timeout-minutes: 15
 
     steps:

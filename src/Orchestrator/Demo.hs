@@ -102,6 +102,8 @@ goodWorkflow = Workflow
           , jobEnv = Map.empty
           , jobIf = Nothing
           , jobTimeoutMin = Just 30
+          , jobFailFast = Nothing
+          , jobMatrixIncludeOnly = False
           }
       ]
   , wfPermissions = Just (PermissionsMap (Map.fromList [("contents", PermRead)]))
@@ -137,6 +139,8 @@ problematicWorkflow = Workflow
           , jobEnv = Map.empty
           , jobIf = Nothing
           , jobTimeoutMin = Nothing
+          , jobFailFast = Nothing
+          , jobMatrixIncludeOnly = False
           }
       ]
   , wfPermissions = Nothing
@@ -170,6 +174,8 @@ insecureWorkflow = Workflow
           , jobEnv = Map.empty
           , jobIf = Nothing
           , jobTimeoutMin = Nothing
+          , jobFailFast = Nothing
+          , jobMatrixIncludeOnly = False
           }
       ]
   , wfPermissions = Just (PermissionsAll PermWrite)
