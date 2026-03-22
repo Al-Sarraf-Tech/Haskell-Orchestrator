@@ -50,6 +50,9 @@ mkValFinding sev rid msg fp = Finding
   , findingFile = fp
   , findingLocation = Nothing
   , findingRemediation = Nothing
+  , findingAutoFixable = False
+  , findingEffort = Nothing
+  , findingLinks = []
   }
 
 checkEmptyJobs :: Workflow -> [Finding]

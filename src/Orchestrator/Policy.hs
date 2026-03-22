@@ -94,6 +94,9 @@ customRuleToPolicy crc = PolicyRule
           , findingFile        = wfFileName wf
           , findingLocation    = Nothing
           , findingRemediation = Just ("Address custom rule: " <> crcName crc)
+          , findingAutoFixable = False
+          , findingEffort      = Nothing
+          , findingLinks       = []
           }]
         else []
   }
@@ -209,6 +212,9 @@ mkFinding sev cat rid msg fp rem' = Finding
   , findingFile = fp
   , findingLocation = Nothing
   , findingRemediation = rem'
+  , findingAutoFixable = False
+  , findingEffort = Nothing
+  , findingLinks = []
   }
 
 ------------------------------------------------------------------------

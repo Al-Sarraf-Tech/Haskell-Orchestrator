@@ -319,6 +319,228 @@ capabilities:
     admin_only: true
     audit: true
 
+  # ── Graph Analysis Domain ──
+
+  - id: CAP-0025
+    name: Dependency graph analysis
+    domain: validation
+    description: Build job DAGs, detect cycles, orphans, and critical path
+    owner: community
+    exposed_in: [community, business, enterprise]
+    forbidden_in: []
+    cli_surface: ["orchestrator scan"]
+    modules: [Orchestrator.Graph]
+    public_safe: true
+    governance: false
+    admin_only: false
+    audit: false
+
+  # ── Extended Rules Domain ──
+
+  - id: CAP-0026
+    name: Extended policy rules
+    domain: policy
+    description: 11 additional rules (graph, reuse, matrix, env, composite, duplicate)
+    owner: community
+    exposed_in: [community, business, enterprise]
+    forbidden_in: []
+    cli_surface: ["orchestrator scan", "orchestrator rules"]
+    modules: [Orchestrator.Policy.Extended, Orchestrator.Rules.Reuse, Orchestrator.Rules.Matrix, Orchestrator.Rules.Environment, Orchestrator.Rules.Composite, Orchestrator.Rules.Duplicate]
+    public_safe: true
+    governance: false
+    admin_only: false
+    audit: false
+
+  # ── Output Formats Domain ──
+
+  - id: CAP-0053
+    name: SARIF output
+    domain: reporting
+    description: SARIF v2.1.0 static analysis format for GitHub Code Scanning
+    owner: community
+    exposed_in: [community, business, enterprise]
+    forbidden_in: []
+    cli_surface: ["--sarif"]
+    modules: [Orchestrator.Render.Sarif]
+    public_safe: true
+    governance: false
+    admin_only: false
+    audit: false
+
+  - id: CAP-0054
+    name: Markdown output
+    domain: reporting
+    description: Markdown table output for PR comments and issue bodies
+    owner: community
+    exposed_in: [community, business, enterprise]
+    forbidden_in: []
+    cli_surface: ["--markdown"]
+    modules: [Orchestrator.Render.Markdown]
+    public_safe: true
+    governance: false
+    admin_only: false
+    audit: false
+
+  # ── Baseline Domain ──
+
+  - id: CAP-0055
+    name: Baseline comparison
+    domain: scanning
+    description: Save and compare baselines for incremental adoption
+    owner: community
+    exposed_in: [community, business, enterprise]
+    forbidden_in: []
+    cli_surface: ["orchestrator baseline", "--baseline"]
+    modules: [Orchestrator.Baseline]
+    public_safe: true
+    governance: false
+    admin_only: false
+    audit: false
+
+  # ── Business Extended Domain ──
+
+  - id: CAP-0042
+    name: Trend tracking
+    domain: reporting
+    description: JSONL-based scan result history and trend analysis
+    owner: business
+    exposed_in: [business, enterprise]
+    forbidden_in: [community]
+    cli_surface: ["orchestrator-business stats --trend"]
+    modules: [OrchestratorBusiness.Trend]
+    public_safe: false
+    governance: false
+    admin_only: false
+    audit: false
+
+  - id: CAP-0043
+    name: Diff-aware scanning
+    domain: scanning
+    description: Scan only workflow files changed in a git diff
+    owner: business
+    exposed_in: [business, enterprise]
+    forbidden_in: [community]
+    cli_surface: ["orchestrator-business scan --diff"]
+    modules: [OrchestratorBusiness.DiffAware]
+    public_safe: false
+    governance: false
+    admin_only: false
+    audit: false
+
+  - id: CAP-0044
+    name: PR comment integration
+    domain: reporting
+    description: Format findings as GitHub PR review comments
+    owner: business
+    exposed_in: [business, enterprise]
+    forbidden_in: [community]
+    cli_surface: ["orchestrator-business pr-comment"]
+    modules: [OrchestratorBusiness.PRComment]
+    public_safe: false
+    governance: false
+    admin_only: false
+    audit: false
+
+  - id: CAP-0045
+    name: Policy bundles
+    domain: policy
+    description: Curated rule packs (security-hardened, cost-optimized, startup-fast)
+    owner: business
+    exposed_in: [business, enterprise]
+    forbidden_in: [community]
+    cli_surface: ["orchestrator-business scan --bundle"]
+    modules: [OrchestratorBusiness.PolicyBundle]
+    public_safe: false
+    governance: false
+    admin_only: false
+    audit: false
+
+  # ── Enterprise Extended Domain ──
+
+  - id: CAP-0082
+    name: Risk scoring
+    domain: compliance
+    description: Per-repository risk scores (0-100) with org heatmap
+    owner: enterprise
+    exposed_in: [enterprise]
+    forbidden_in: [community, business]
+    cli_surface: ["orchestrator-enterprise risk"]
+    modules: [OrchestratorEnterprise.RiskScore]
+    public_safe: false
+    governance: true
+    admin_only: false
+    audit: false
+
+  - id: CAP-0083
+    name: Policy inheritance
+    domain: governance
+    description: Cascading policies from org to team to repo level
+    owner: enterprise
+    exposed_in: [enterprise]
+    forbidden_in: [community, business]
+    cli_surface: ["orchestrator-enterprise governance hierarchy"]
+    modules: [OrchestratorEnterprise.PolicyInheritance]
+    public_safe: false
+    governance: true
+    admin_only: true
+    audit: false
+
+  - id: CAP-0084
+    name: Drift detection
+    domain: compliance
+    description: Regression alerting against saved baselines
+    owner: enterprise
+    exposed_in: [enterprise]
+    forbidden_in: [community, business]
+    cli_surface: ["orchestrator-enterprise drift"]
+    modules: [OrchestratorEnterprise.DriftDetection]
+    public_safe: false
+    governance: true
+    admin_only: false
+    audit: true
+
+  - id: CAP-0085
+    name: Webhook notifications
+    domain: admin
+    description: Slack, PagerDuty, and generic HTTP notifications on violations
+    owner: enterprise
+    exposed_in: [enterprise]
+    forbidden_in: [community, business]
+    cli_surface: ["orchestrator-enterprise notify"]
+    modules: [OrchestratorEnterprise.Webhook]
+    public_safe: false
+    governance: true
+    admin_only: true
+    audit: true
+
+  - id: CAP-0086
+    name: Role-based access control
+    domain: admin
+    description: PolicyAdmin, Auditor, Operator, Viewer roles
+    owner: enterprise
+    exposed_in: [enterprise]
+    forbidden_in: [community, business]
+    cli_surface: ["orchestrator-enterprise rbac"]
+    modules: [OrchestratorEnterprise.RBAC]
+    public_safe: false
+    governance: true
+    admin_only: true
+    audit: true
+
+  - id: CAP-0087
+    name: Evidence vault
+    domain: compliance
+    description: Tamper-evident compliance evidence bundles for auditors
+    owner: enterprise
+    exposed_in: [enterprise]
+    forbidden_in: [community, business]
+    cli_surface: ["orchestrator-enterprise evidence"]
+    modules: [OrchestratorEnterprise.EvidenceVault]
+    public_safe: false
+    governance: true
+    admin_only: true
+    audit: true
+
   # ── Demo Domain ──
 
   - id: CAP-0100

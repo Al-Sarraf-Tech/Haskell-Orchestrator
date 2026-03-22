@@ -49,8 +49,18 @@ scanLocalPath pack cfg root = do
       result <- parseWorkflowFile fp
       case result of
         Left (ParseError _ msg) -> pure (fp,
-          [ Finding Error Structure "SCAN-001"
-              ("Failed to parse: " <> msg) fp Nothing Nothing
+          [ Finding
+              { findingSeverity = Error
+              , findingCategory = Structure
+              , findingRuleId = "SCAN-001"
+              , findingMessage = "Failed to parse: " <> msg
+              , findingFile = fp
+              , findingLocation = Nothing
+              , findingRemediation = Nothing
+              , findingAutoFixable = False
+              , findingEffort = Nothing
+              , findingLinks = []
+              }
           ])
         Left _ -> pure (fp, [])
         Right wf -> pure (fp, evaluatePolicies pack wf)

@@ -130,6 +130,12 @@ instance Arbitrary Finding where
     <*> elements ["ci.yml", "deploy.yml", "build.yml"]
     <*> oneof [pure Nothing, Just <$> elements ["job:build", "step:3"]]
     <*> oneof [pure Nothing, Just <$> elements ["Fix the issue", "Add permissions block"]]
+    <*> arbitrary
+    <*> oneof [pure Nothing, Just <$> arbitrary]
+    <*> pure []
+
+instance Arbitrary Effort where
+  arbitrary = elements [LowEffort, MediumEffort, HighEffort]
 
 ------------------------------------------------------------------------
 -- Properties
