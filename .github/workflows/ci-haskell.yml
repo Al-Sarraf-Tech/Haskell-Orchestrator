@@ -1,19 +1,16 @@
-name: Security
+name: Haskell CI
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-  schedule:
-    - cron: '0 6 * * 1'  # Weekly on Monday at 06:00 UTC
 
 permissions:
   contents: read
-  security-events: write
 
 concurrency:
-  group: security-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -33,11 +30,15 @@ jobs:
           fi
           echo "Repository context verified: ${{ github.repository }}"
 
-  dependency-audit:
-    name: Dependency Audit
+  build-and-test:
+    name: Build and Test
     runs-on: [self-hosted, unified-all]
     needs: repo-guard
-    timeout-minutes: 15
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        ghc: ['9.6.7']
 
     steps:
       - name: Checkout
@@ -52,25 +53,23 @@ jobs:
           path: |
             ~/.cabal/packages
             ~/.cabal/store
-          key: ${{ runner.os }}-cabal-security-${{ hashFiles('**/*.cabal', 'cabal.project') }}
+            dist-newstyle
+          key: ${{ runner.os }}-cabal-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
           restore-keys: |
-            ${{ runner.os }}-cabal-security-
+            ${{ runner.os }}-cabal-${{ matrix.ghc }}-
             ${{ runner.os }}-cabal-
 
-      - name: Update index
+      - name: Update package index
         run: cabal update
 
-      - name: Generate freeze file
-        run: cabal freeze
+      - name: Build
+        run: cabal build all
 
-      - name: Check for known vulnerabilities
-        run: |
-          echo "Checking dependencies for known issues..."
-          cabal outdated || true
-          echo "Dependency audit complete."
+      - name: Test
+        run: cabal test all --test-show-details=direct
 
-  secret-scan:
-    name: Secret Scan
+  lint:
+    name: Lint
     runs-on: [self-hosted, unified-all]
     needs: repo-guard
     timeout-minutes: 10
@@ -78,14 +77,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Gitleaks scan
-        run: gitleaks detect --source=. --no-banner --exit-code=1
+      - name: HLint
+        env:
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
+        run: hlint src/ app/ --no-exit-code 2>&1 | cat || true
 
-  attribution-check:
-    name: Attribution Check
+  capability-check:
+    name: Capability Contract Check
     runs-on: [self-hosted, unified-all]
     needs: repo-guard
     timeout-minutes: 5
@@ -94,22 +94,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify no prohibited content
+      - name: Verify no Business/Enterprise module imports
         run: |
-          T1="CLAU"
-          T2="DE"
-          T3="Anthro"
-          T4="pic"
-          TERMS="${T1}${T2}\.md|AGENTS\.md|${T1}${T2} Code|${T3}${T4}|AI-generated|Co-authored-by|Generated-by"
-          FOUND=0
-          if grep -rIl --include='*.md' --include='*.hs' --include='*.cabal' \
-               -E "$TERMS" . 2>/dev/null | grep -v '.local/' | grep -v '.git/'; then
-            FOUND=1
-          fi
-          [ -f "${T1}${T2}.md" ] && FOUND=1
-          [ -f "AGENTS.md" ] && FOUND=1
-          if [ "$FOUND" -eq 1 ]; then
-            echo "ERROR: Prohibited content or files detected"
+          if grep -rI --include='*.hs' 'OrchestratorBusiness\|OrchestratorEnterprise' src/ app/ 2>/dev/null; then
+            echo "::error::LEAK DETECTED: Source imports Business or Enterprise modules"
             exit 1
           fi
-          echo "Clean"
+          if grep -rI --include='*.cabal' 'OrchestratorBusiness\|OrchestratorEnterprise' . 2>/dev/null; then
+            echo "::error::LEAK DETECTED: .cabal file references Business or Enterprise modules"
+            exit 1
+          fi
+          echo "Capability contract check passed — Community tier only"
