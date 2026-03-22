@@ -61,6 +61,7 @@ minimalJob jid = Job
   , jobIf = Nothing
   , jobTimeoutMin = Nothing
   , jobEnvironment = Nothing
+  , jobEnvironmentUrl = False
   , jobFailFast = Nothing
   , jobMatrixIncludeOnly = False
   }

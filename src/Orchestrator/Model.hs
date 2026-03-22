@@ -86,8 +86,9 @@ data Job = Job
   , jobEnv          :: !EnvMap
   , jobIf           :: !(Maybe Text)
   , jobTimeoutMin   :: !(Maybe Int)
-  , jobEnvironment  :: !(Maybe Text)
-  , jobFailFast     :: !(Maybe Bool)
+  , jobEnvironment    :: !(Maybe Text)
+  , jobEnvironmentUrl :: !Bool
+  , jobFailFast      :: !(Maybe Bool)
   , jobMatrixIncludeOnly :: !Bool
   } deriving stock (Eq, Show)
 

@@ -270,7 +270,9 @@ selfHostedRunnerRule = PolicyRule
   , ruleCategory = Runners
   , ruleCheck = \wf ->
       concatMap (\j -> case jobRunsOn j of
-        CustomLabel label ->
+        CustomLabel label
+          | "self-hosted" `T.isInfixOf` label -> []  -- Deliberate self-hosted runner choice
+          | otherwise ->
           [ mkFinding Info Runners "RUN-001"
               ("Job '" <> jobId j <> "' uses non-standard runner: " <> label)
               (wfFileName wf)

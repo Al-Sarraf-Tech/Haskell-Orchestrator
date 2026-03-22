@@ -103,6 +103,7 @@ goodWorkflow = Workflow
           , jobIf = Nothing
           , jobTimeoutMin = Just 30
           , jobEnvironment = Nothing
+          , jobEnvironmentUrl = False
           , jobFailFast = Nothing
           , jobMatrixIncludeOnly = False
           }
@@ -141,6 +142,7 @@ problematicWorkflow = Workflow
           , jobIf = Nothing
           , jobTimeoutMin = Nothing
           , jobEnvironment = Nothing
+          , jobEnvironmentUrl = False
           , jobFailFast = Nothing
           , jobMatrixIncludeOnly = False
           }
@@ -177,6 +179,7 @@ insecureWorkflow = Workflow
           , jobIf = Nothing
           , jobTimeoutMin = Nothing
           , jobEnvironment = Nothing
+          , jobEnvironmentUrl = False
           , jobFailFast = Nothing
           , jobMatrixIncludeOnly = False
           }

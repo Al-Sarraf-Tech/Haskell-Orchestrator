@@ -61,7 +61,7 @@ envMissingUrlRule = PolicyRule
   , ruleCheck = \wf ->
       concatMap (\j ->
         let refsEnv = jobReferencesEnvironment j
-            hasUrl = any stepSetsEnvironmentUrl (jobSteps j)
+            hasUrl = jobEnvironmentUrl j || any stepSetsEnvironmentUrl (jobSteps j)
         in if refsEnv && not hasUrl
            then [ Finding
                     { findingSeverity = Info

@@ -151,11 +151,26 @@ parseJob jid (Object obj) =
   , jobTimeoutMin = case KM.lookup "timeout-minutes" obj of
       Just (Number n) -> Just (round n)
       _               -> Nothing
-  , jobEnvironment = extractText "environment" obj
+  , jobEnvironment = parseEnvironment $ KM.lookup "environment" obj
+  , jobEnvironmentUrl = parseEnvironmentUrl $ KM.lookup "environment" obj
   , jobFailFast = ff
   , jobMatrixIncludeOnly = inclOnly
   }
-parseJob jid _ = Job jid Nothing (StandardRunner "ubuntu-latest") [] Nothing [] Nothing Map.empty Nothing Nothing Nothing Nothing False
+parseJob jid _ = Job jid Nothing (StandardRunner "ubuntu-latest") [] Nothing [] Nothing Map.empty Nothing Nothing Nothing False Nothing False
+
+-- | Parse the 'environment:' field. Handles both string form
+-- (environment: release) and object form (environment: {name: release, url: ...}).
+parseEnvironment :: Maybe Value -> Maybe Text
+parseEnvironment (Just (String s)) = Just s
+parseEnvironment (Just (Object envObj)) = extractText "name" envObj
+parseEnvironment _ = Nothing
+
+-- | Check if the environment object form has a 'url' field.
+parseEnvironmentUrl :: Maybe Value -> Bool
+parseEnvironmentUrl (Just (Object envObj)) = case extractText "url" envObj of
+  Just _ -> True
+  Nothing -> False
+parseEnvironmentUrl _ = False
 
 -- | Parse the strategy block, extracting fail-fast and whether the matrix
 -- uses only 'include:' entries (no cross-product dimensions).
@@ -177,6 +192,9 @@ parseRunner (Just (String s))
   | "${{" `T.isPrefixOf` s = MatrixRunner s
   | s `elem` knownRunners  = StandardRunner s
   | otherwise              = CustomLabel s
+parseRunner (Just (Array arr)) =
+  let labels = [toText v | v <- foldr (:) [] arr]
+  in CustomLabel (T.intercalate ", " labels)
 parseRunner _ = StandardRunner "ubuntu-latest"
 
 knownRunners :: [Text]
