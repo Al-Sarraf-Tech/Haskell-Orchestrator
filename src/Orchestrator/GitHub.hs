@@ -37,6 +37,7 @@ import Network.HTTP.Types.Status (statusCode)
 import Orchestrator.Parser (parseWorkflowBS)
 import Orchestrator.Policy (PolicyPack, evaluatePolicies)
 import Orchestrator.Types
+import Orchestrator.Version (orchestratorVersion)
 
 -- | Errors specific to GitHub API operations.
 data GitHubError
@@ -99,7 +100,7 @@ makeGitHubRequest :: GitHubConfig -> Text -> IO Request
 makeGitHubRequest cfg path = do
   let url = T.unpack (ghcApiUrl cfg) <> T.unpack path
   req <- parseRequest url
-  let headers = [ ("User-Agent", "haskell-orchestrator/1.0")
+  let headers = [ ("User-Agent", TE.encodeUtf8 $ "haskell-orchestrator/" <> orchestratorVersion)
                 , ("Accept", "application/vnd.github.v3+json")
                 ] ++ maybe [] (\t -> [("Authorization", "token " <> TE.encodeUtf8 t)]) (ghcToken cfg)
   pure req { requestHeaders = headers }

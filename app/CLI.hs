@@ -9,6 +9,7 @@ module CLI
 import Data.Text (Text)
 import Data.Text qualified as T
 import Options.Applicative
+import Orchestrator.Version (orchestratorVersion, orchestratorEdition)
 
 -- | Output format selection.
 data OutputMode = OutText | OutJSON | OutSarif | OutMarkdown
@@ -48,9 +49,9 @@ parseOptions = info (optionsParser <**> helper)
     <> header "orchestrator — GitHub Actions workflow standardization and governance"
     <> progDesc "Discover workflow sprawl, detect drift, validate against policies, \
                 \and generate remediation plans. Run 'orchestrator demo' for a quick tour."
-    <> footer "Community Edition v2.0.0 — 21 built-in rules. \
+    <> footer (T.unpack $ orchestratorEdition <> " Edition v" <> orchestratorVersion <> " — 21 built-in rules. \
               \For multi-repo batch scanning, see Business edition. \
-              \For org-wide governance, see Enterprise edition."
+              \For org-wide governance, see Enterprise edition.")
   )
 
 optionsParser :: Parser Options

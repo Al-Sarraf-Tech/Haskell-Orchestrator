@@ -19,6 +19,7 @@ import Orchestrator.Render.Markdown (renderMarkdownFindings, renderMarkdownSumma
 import Orchestrator.Render.Sarif (renderSarifJSON)
 import Orchestrator.Render.Upgrade (renderUpgradePath)
 import Orchestrator.UI.Server (startDashboard, defaultServerConfig, ServerConfig (..))
+import Orchestrator.Version (orchestratorVersion, orchestratorEdition)
 import Orchestrator.Scan (findWorkflowFiles, scanLocalPath)
 import Orchestrator.Parser (parseWorkflowFile)
 import Orchestrator.Types
@@ -54,7 +55,7 @@ activePack = extendedPolicyPack
 renderOutput :: OutputMode -> [Finding] -> Text
 renderOutput OutText fs = renderFindings fs <> "\n" <> renderSummary fs
 renderOutput OutJSON fs = renderFindingsJSON fs
-renderOutput OutSarif fs = renderSarifJSON "orchestrator" "2.0.0" fs
+renderOutput OutSarif fs = renderSarifJSON "orchestrator" orchestratorVersion fs
 renderOutput OutMarkdown fs = renderMarkdownFindings fs <> "\n" <> renderMarkdownSummary fs
 
 -- | Determine exit code based on findings.
@@ -163,7 +164,7 @@ runDoctor opts = do
   TIO.putStrLn $ "  Parallelism:   " <> maybe "auto (safe)" (\j -> T.pack (show j) <> " worker(s)") (optJobs opts)
 
   TIO.putStrLn ""
-  TIO.putStrLn "Edition:         Community v2.0.0"
+  TIO.putStrLn $ "Edition:         " <> orchestratorEdition <> " v" <> orchestratorVersion
   TIO.putStrLn "                 21 built-in rules (10 standard + 11 extended)"
   TIO.putStrLn ""
   TIO.putStrLn "Output formats:  text, json, sarif, markdown"
@@ -182,7 +183,7 @@ runInit = do
       TIO.putStrLn "Remove it first if you want to regenerate."
     else do
       let content = T.unlines
-            [ "# Haskell Orchestrator v2.0.0 configuration"
+            [ "# Haskell Orchestrator v" <> orchestratorVersion <> " configuration"
             , "# Docs: https://github.com/jalsarraf0/Haskell-Orchestrator"
             , "#"
             , "# This tool scans GitHub Actions workflows for policy violations,"

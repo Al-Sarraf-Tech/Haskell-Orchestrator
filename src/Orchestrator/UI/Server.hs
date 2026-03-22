@@ -1,7 +1,7 @@
 -- | HTTP server for the Orchestrator web dashboard.
 --
 -- Serves the embedded dashboard HTML and JSON API endpoints on
--- localhost, LAN, and Tailscale interfaces. Never binds to 0.0.0.0.
+-- configured interfaces. Never binds to 0.0.0.0.
 module Orchestrator.UI.Server
   ( -- * Server
     startDashboard
@@ -9,12 +9,12 @@ module Orchestrator.UI.Server
   , defaultServerConfig
     -- * Binding
   , BindAddress (..)
+  , parseBindAddrs
   ) where
 
 import Control.Concurrent (forkIO)
-import Data.ByteString qualified as BS
+import Control.Concurrent.MVar (MVar, newMVar, readMVar, modifyMVar_)
 import Data.ByteString.Lazy qualified as LBS
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
@@ -25,22 +25,25 @@ import Network.Wai (Application, Response, pathInfo, responseLBS)
 import Network.Wai.Handler.Warp
     ( Port, defaultSettings, runSettings, setHost, setPort )
 import Data.String (fromString)
+import System.Environment (lookupEnv)
 import System.IO (hPutStrLn, stderr)
 import System.Process (callCommand)
+import System.Info qualified as SI
 import Control.Exception (try, SomeException)
+import Text.Read (readMaybe)
 
 import Orchestrator.Config (OrchestratorConfig (..), defaultConfig)
+import Orchestrator.Policy (PolicyPack (..), packRules)
 import Orchestrator.Policy.Extended (extendedPolicyPack)
 import Orchestrator.Scan (scanLocalPath)
 import Orchestrator.Types
 import Orchestrator.UI (DashboardData (..), renderDashboardHTML, renderAPIJSON)
+import Orchestrator.Version (orchestratorVersion, orchestratorEdition)
 
 -- | Which address to bind to.
 data BindAddress
   = BindLocalhost     -- ^ 127.0.0.1 (IPv4 loopback)
   | BindLocalhost6    -- ^ ::1 (IPv6 loopback)
-  | BindLAN           -- ^ 192.168.50.5 (enp5s0)
-  | BindTailscale     -- ^ 100.111.198.19 (tailscale0)
   | BindSpecific !Text -- ^ Custom IP address
   deriving stock (Eq, Show)
 
@@ -52,11 +55,11 @@ data ServerConfig = ServerConfig
   , scOpenBrowser :: !Bool
   } deriving stock (Eq, Show)
 
--- | Default server config: localhost + LAN + Tailscale, port 8420, auto-open browser.
+-- | Default server config: localhost only, port 8420, auto-open browser.
 defaultServerConfig :: FilePath -> ServerConfig
 defaultServerConfig path = ServerConfig
   { scPort = 8420
-  , scBindAddrs = [BindLocalhost, BindLocalhost6, BindLAN, BindTailscale]
+  , scBindAddrs = [BindLocalhost]
   , scScanPath = path
   , scOpenBrowser = True
   }
@@ -65,14 +68,53 @@ defaultServerConfig path = ServerConfig
 resolveAddr :: BindAddress -> String
 resolveAddr BindLocalhost = "127.0.0.1"
 resolveAddr BindLocalhost6 = "::1"
-resolveAddr BindLAN = "192.168.50.5"
-resolveAddr BindTailscale = "100.111.198.19"
 resolveAddr (BindSpecific ip) = T.unpack ip
+
+-- | Parse a comma-separated list of bind addresses.
+parseBindAddrs :: Text -> [BindAddress]
+parseBindAddrs input =
+  let addrs = map T.strip $ T.splitOn "," input
+  in map parseOne (filter (not . T.null) addrs)
+  where
+    parseOne "localhost" = BindLocalhost
+    parseOne "127.0.0.1" = BindLocalhost
+    parseOne "::1" = BindLocalhost6
+    parseOne ip = BindSpecific ip
+
+-- | Apply environment variable overrides to a ServerConfig.
+applyEnvOverrides :: ServerConfig -> IO ServerConfig
+applyEnvOverrides cfg = do
+  mbBind <- lookupEnv "ORCHESTRATOR_BIND_ADDR"
+  mbPort <- lookupEnv "ORCHESTRATOR_PORT"
+  let cfg1 = case mbBind of
+        Just s | not (null s) -> cfg { scBindAddrs = parseBindAddrs (T.pack s) }
+        _ -> cfg
+      cfg2 = case mbPort >>= readMaybe of
+        Just p  -> cfg1 { scPort = p }
+        Nothing -> cfg1
+  pure cfg2
+
+-- | Compute rule count dynamically from the policy pack.
+dynamicRuleCount :: Int
+dynamicRuleCount = length (packRules extendedPolicyPack)
+
+-- | Partition scan results into successes and failures, logging failures.
+partitionResults :: [Either String a] -> IO [a]
+partitionResults = go []
+  where
+    go acc [] = pure (reverse acc)
+    go acc (Right x : rest) = go (x : acc) rest
+    go acc (Left err : rest) = do
+      hPutStrLn stderr $ "Scan error: " ++ err
+      go acc rest
 
 -- | Start the dashboard server on configured interfaces.
 -- Spawns one warp instance per bind address.
 startDashboard :: ServerConfig -> IO ()
-startDashboard cfg = do
+startDashboard cfg0 = do
+  -- Apply environment variable overrides
+  cfg <- applyEnvOverrides cfg0
+
   -- Initial scan
   TIO.putStrLn "Scanning workflows..."
   let pack = extendedPolicyPack
@@ -80,14 +122,17 @@ startDashboard cfg = do
   scanResult <- scanLocalPath pack scfg (scScanPath cfg)
 
   -- Build dashboard data
-  dataRef <- newIORef $ case scanResult of
-    Left _ -> DashboardData [] Nothing 21 "2.5.0" "Community"
+  case scanResult of
+    Left err -> hPutStrLn stderr $ "Initial scan failed: " ++ show err
+    Right _  -> pure ()
+  dataRef <- newMVar $ case scanResult of
+    Left _ -> DashboardData [] Nothing dynamicRuleCount orchestratorVersion orchestratorEdition
     Right sr -> DashboardData
       { ddFindings = scanFindings sr
       , ddScanResult = Just sr
-      , ddRuleCount = 21
-      , ddVersion = "2.5.0"
-      , ddEdition = "Community"
+      , ddRuleCount = dynamicRuleCount
+      , ddVersion = orchestratorVersion
+      , ddEdition = orchestratorEdition
       }
 
   let app = dashboardApp dataRef (scScanPath cfg)
@@ -96,7 +141,7 @@ startDashboard cfg = do
 
   -- Report binding info
   TIO.putStrLn ""
-  TIO.putStrLn "Orchestrator Dashboard v2.5.0"
+  TIO.putStrLn $ "Orchestrator Dashboard v" <> orchestratorVersion
   TIO.putStrLn (T.replicate 50 "─")
 
   -- Start a server on each configured interface
@@ -133,7 +178,7 @@ startDashboard cfg = do
       runSettings settings app
 
 -- | WAI application serving the dashboard.
-dashboardApp :: IORef DashboardData -> FilePath -> Application
+dashboardApp :: MVar DashboardData -> FilePath -> Application
 dashboardApp dataRef scanPath req respond = do
   let path = pathInfo req
   case path of
@@ -143,11 +188,11 @@ dashboardApp dataRef scanPath req respond = do
 
     -- API endpoints
     ["api", "health"] -> do
-      dd <- readIORef dataRef
+      dd <- readMVar dataRef
       respond $ jsonResponse $ renderAPIJSON dd
 
     ["api", "scan"] -> do
-      dd <- readIORef dataRef
+      dd <- readMVar dataRef
       respond $ jsonResponse $ renderAPIJSON dd
 
     ["api", "rescan"] -> do
@@ -157,16 +202,17 @@ dashboardApp dataRef scanPath req respond = do
       result <- scanLocalPath pack scfg scanPath
       case result of
         Right sr -> do
-          writeIORef dataRef $ DashboardData
+          modifyMVar_ dataRef $ \_ -> pure $ DashboardData
             { ddFindings = scanFindings sr
             , ddScanResult = Just sr
-            , ddRuleCount = 21
-            , ddVersion = "2.5.0"
-            , ddEdition = "Community"
+            , ddRuleCount = dynamicRuleCount
+            , ddVersion = orchestratorVersion
+            , ddEdition = orchestratorEdition
             }
-          dd <- readIORef dataRef
+          dd <- readMVar dataRef
           respond $ jsonResponse $ renderAPIJSON dd
-        Left _ ->
+        Left err -> do
+          hPutStrLn stderr $ "Rescan failed: " ++ show err
           respond $ jsonResponse "{\"error\": \"scan failed\"}"
 
     -- 404
@@ -175,9 +221,9 @@ dashboardApp dataRef scanPath req respond = do
            "404 Not Found"
 
 -- | Serve the HTML dashboard page.
-serveDashboard :: IORef DashboardData -> (Response -> IO b) -> IO b
+serveDashboard :: MVar DashboardData -> (Response -> IO b) -> IO b
 serveDashboard dataRef respond = do
-  dd <- readIORef dataRef
+  dd <- readMVar dataRef
   let html = renderDashboardHTML dd
   respond $ responseLBS status200
     [(hContentType, "text/html; charset=utf-8")]
@@ -193,7 +239,11 @@ jsonResponse body = responseLBS status200
 openBrowser :: String -> Port -> IO ()
 openBrowser addr port = do
   let url = "http://" ++ addr ++ ":" ++ show port
-  result <- try (callCommand $ "xdg-open " ++ url ++ " 2>/dev/null &") :: IO (Either SomeException ())
+      cmd = case SI.os of
+        "darwin"  -> "open"
+        "mingw32" -> "start"
+        _         -> "xdg-open"
+  result <- try (callCommand $ cmd ++ " " ++ url ++ " 2>/dev/null &") :: IO (Either SomeException ())
   case result of
     Left _ -> hPutStrLn stderr $ "Open " ++ url ++ " in your browser."
     Right _ -> pure ()
