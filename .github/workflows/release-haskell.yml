@@ -183,7 +183,9 @@ jobs:
     needs: build
     if: ${{ always() && needs.build.result != 'cancelled' }}
     runs-on: [self-hosted, Linux, unified-all]
-    environment: release
+    environment:
+      name: release
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
     timeout-minutes: 15
 
     steps:

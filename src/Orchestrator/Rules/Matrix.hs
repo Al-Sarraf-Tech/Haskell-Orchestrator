@@ -76,10 +76,12 @@ matrixFailFastRule = PolicyRule
 ------------------------------------------------------------------------
 
 -- | Check if a job references matrix variables.
+-- Only match GitHub Actions expression patterns (${{ matrix.X }}),
+-- not arbitrary strings like "capability-matrix.md".
 hasMatrixRefs :: Job -> Bool
 hasMatrixRefs j =
   let allText = concatMap stepTexts (jobSteps j)
-  in any ("matrix." `T.isInfixOf`) allText
+  in any (\t -> "${{ matrix." `T.isInfixOf` t || "{{matrix." `T.isInfixOf` t) allText
 
 stepTexts :: Step -> [Text]
 stepTexts s = concat
