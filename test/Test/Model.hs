@@ -60,6 +60,7 @@ minimalJob jid = Job
   , jobEnv = Map.empty
   , jobIf = Nothing
   , jobTimeoutMin = Nothing
+  , jobEnvironment = Nothing
   , jobFailFast = Nothing
   , jobMatrixIncludeOnly = False
   }

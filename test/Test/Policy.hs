@@ -65,7 +65,7 @@ mkWorkflow perms conc = Workflow
   , wfTriggers = [TriggerEvents [TriggerEvent "push" ["main"] [] []]]
   , wfJobs = [Job "build" (Just "Build") (StandardRunner "ubuntu-latest")
                [Step Nothing (Just "Run") Nothing (Just "echo test") Map.empty Map.empty Nothing]
-               Nothing [] Nothing Map.empty Nothing Nothing Nothing False]
+               Nothing [] Nothing Map.empty Nothing Nothing Nothing Nothing False]
   , wfPermissions = perms
   , wfConcurrency = conc
   , wfEnv = Map.empty
@@ -78,7 +78,7 @@ mkWorkflowWithTimeout perms conc = Workflow
   , wfTriggers = [TriggerEvents [TriggerEvent "push" ["main"] [] []]]
   , wfJobs = [Job "build" (Just "Build") (StandardRunner "ubuntu-latest")
                [Step Nothing (Just "Run") Nothing (Just "echo test") Map.empty Map.empty Nothing]
-               Nothing [] Nothing Map.empty Nothing (Just 30) Nothing False]
+               Nothing [] Nothing Map.empty Nothing (Just 30) Nothing Nothing False]
   , wfPermissions = perms
   , wfConcurrency = conc
   , wfEnv = Map.empty
@@ -91,7 +91,7 @@ mkWorkflowWithAction action = Workflow
   , wfTriggers = [TriggerEvents [TriggerEvent "push" ["main"] [] []]]
   , wfJobs = [Job "build" (Just "Build") (StandardRunner "ubuntu-latest")
                [Step Nothing (Just "Action") (Just action) Nothing Map.empty Map.empty Nothing]
-               Nothing [] Nothing Map.empty Nothing (Just 30) Nothing False]
+               Nothing [] Nothing Map.empty Nothing (Just 30) Nothing Nothing False]
   , wfPermissions = Just (PermissionsMap (Map.fromList [("contents", PermRead)]))
   , wfConcurrency = Nothing
   , wfEnv = Map.empty

@@ -102,6 +102,7 @@ goodWorkflow = Workflow
           , jobEnv = Map.empty
           , jobIf = Nothing
           , jobTimeoutMin = Just 30
+          , jobEnvironment = Nothing
           , jobFailFast = Nothing
           , jobMatrixIncludeOnly = False
           }
@@ -139,6 +140,7 @@ problematicWorkflow = Workflow
           , jobEnv = Map.empty
           , jobIf = Nothing
           , jobTimeoutMin = Nothing
+          , jobEnvironment = Nothing
           , jobFailFast = Nothing
           , jobMatrixIncludeOnly = False
           }
@@ -174,6 +176,7 @@ insecureWorkflow = Workflow
           , jobEnv = Map.empty
           , jobIf = Nothing
           , jobTimeoutMin = Nothing
+          , jobEnvironment = Nothing
           , jobFailFast = Nothing
           , jobMatrixIncludeOnly = False
           }

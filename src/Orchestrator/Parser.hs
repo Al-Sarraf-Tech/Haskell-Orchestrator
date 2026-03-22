@@ -151,10 +151,11 @@ parseJob jid (Object obj) =
   , jobTimeoutMin = case KM.lookup "timeout-minutes" obj of
       Just (Number n) -> Just (round n)
       _               -> Nothing
+  , jobEnvironment = extractText "environment" obj
   , jobFailFast = ff
   , jobMatrixIncludeOnly = inclOnly
   }
-parseJob jid _ = Job jid Nothing (StandardRunner "ubuntu-latest") [] Nothing [] Nothing Map.empty Nothing Nothing Nothing False
+parseJob jid _ = Job jid Nothing (StandardRunner "ubuntu-latest") [] Nothing [] Nothing Map.empty Nothing Nothing Nothing Nothing False
 
 -- | Parse the strategy block, extracting fail-fast and whether the matrix
 -- uses only 'include:' entries (no cross-product dimensions).

@@ -72,9 +72,10 @@ instance Arbitrary Job where
     conc <- oneof [pure Nothing, Just <$> arbConc]
     jif <- oneof [pure Nothing, Just <$> elements ["github.ref == 'refs/heads/main'", "always()"]]
     timeout <- oneof [pure Nothing, Just <$> choose (5, 120)]
+    env <- oneof [pure Nothing, Just <$> elements ["production", "staging", "development"]]
     ff <- oneof [pure Nothing, Just <$> arbitrary]
     inclOnly <- arbitrary
-    pure $ Job jid jname runner steps perms needs conc Map.empty jif timeout ff inclOnly
+    pure $ Job jid jname runner steps perms needs conc Map.empty jif timeout env ff inclOnly
     where
       arbJobId = elements ["build", "test", "deploy", "lint", "check", "publish", "release"]
       arbName = elements ["Build", "Test", "Deploy", "Lint", "Check", "Publish"]

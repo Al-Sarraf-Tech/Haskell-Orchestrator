@@ -98,15 +98,19 @@ isDeploymentWorkflow wf =
   in any (\i -> i `T.isInfixOf` name || i `T.isInfixOf` file) indicators
 
 -- | Check if a job references a GitHub Environment.
--- Looks for environment references in 'if' conditions and step configs.
+-- Checks the job-level 'environment:' field first, then falls back to
+-- heuristic text search in 'if' conditions and step configs.
 jobReferencesEnvironment :: Job -> Bool
 jobReferencesEnvironment j =
-  let ifRef = maybe False ("environment" `T.isInfixOf`) (jobIf j)
-      stepRefs = any (\s ->
-        maybe False ("environment" `T.isInfixOf`) (stepRun s)
-        || maybe False ("environment" `T.isInfixOf`) (stepIf s)
-        ) (jobSteps j)
-  in ifRef || stepRefs
+  case jobEnvironment j of
+    Just _  -> True
+    Nothing ->
+      let ifRef = maybe False ("environment" `T.isInfixOf`) (jobIf j)
+          stepRefs = any (\s ->
+            maybe False ("environment" `T.isInfixOf`) (stepRun s)
+            || maybe False ("environment" `T.isInfixOf`) (stepIf s)
+            ) (jobSteps j)
+      in ifRef || stepRefs
 
 -- | Check if a step sets environment_url.
 stepSetsEnvironmentUrl :: Step -> Bool
