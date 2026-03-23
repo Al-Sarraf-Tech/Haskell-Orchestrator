@@ -157,6 +157,101 @@ orchestrator demo
 This runs a complete scan/validate/plan cycle against synthetic workflow
 fixtures.  No external repositories are accessed.
 
+<details>
+<summary><strong>See demo output</strong> — what <code>orchestrator demo</code> actually produces</summary>
+
+The demo scans 3 synthetic workflows (a clean CI workflow, a problematic deploy,
+and an insecure release) to show the full range of findings and remediation plans:
+
+```
+Haskell Orchestrator — Demo Mode
+════════════════════════════════════════════════════════════
+
+Using synthetic workflow fixtures (no external repos accessed).
+
+Analyzing: CI
+  File: demo/.github/workflows/ci.yml
+
+  Structural validation:
+    No structural issues.
+
+  Policy findings:
+[INFO]     [NAME-001] Workflow has a very short or missing name.
+  File: demo/.github/workflows/ci.yml
+  Fix: Use a descriptive workflow name (e.g., 'CI', 'Release').
+
+Summary
+────────────────────────────────────────
+Total findings: 1
+  Errors:   0
+  Warnings: 0
+  Info:     1
+
+By category:
+  Naming: 1
+
+────────────────────────────────────────────────────────────
+
+Analyzing: Deploy
+  File: demo/.github/workflows/deploy.yml
+
+  Policy findings:
+[WARNING]  [PERM-001] Workflow does not declare a top-level permissions block.
+  Fix: Add a 'permissions:' block to restrict token scope.
+
+[WARNING]  [SEC-001] Step uses unpinned action: third-party/deploy-action@v2.
+           Supply-chain risk: tag references can be mutated.
+  Fix: Pin to a full commit SHA instead of a tag.
+
+[WARNING]  [RES-001] Job 'deployProd' has no timeout-minutes.
+  Fix: Add 'timeout-minutes:' to bound execution time.
+
+[INFO]     [CONC-001] Workflow has pull_request trigger but no concurrency config.
+[INFO]     [NAME-002] Job ID 'deployProd' does not follow kebab-case.
+[INFO]     [TRIG-001] Trigger 'push' uses wildcard branch pattern.
+
+Summary: 6 findings (3 warnings, 3 info)
+
+Remediation Plan (3 steps)
+────────────────────────────────────────────────────────────
+Step 1: PERM-001 — Add a 'permissions:' block to restrict token scope.
+Step 2: SEC-001  — Pin to a full commit SHA instead of a tag.
+Step 3: RES-001  — Add 'timeout-minutes:' to bound execution time.
+
+────────────────────────────────────────────────────────────
+
+Analyzing: Release
+  File: demo/.github/workflows/release.yml
+
+  Policy findings:
+[ERROR]    [PERM-002] Workflow uses 'write-all' permissions, granting broad access.
+  Fix: Use fine-grained permissions instead of 'write-all'.
+
+[ERROR]    [PERM-002] Job 'release' uses 'write-all' permissions.
+  Fix: Use fine-grained permissions instead of 'write-all'.
+
+[ERROR]    [SEC-002] Run step references secrets directly. Secrets in shell
+           commands risk exposure in build logs.
+  Fix: Pass secrets via environment variables instead.
+
+[WARNING]  [RES-001] Job 'release' has no timeout-minutes.
+  Fix: Add 'timeout-minutes:' to bound execution time.
+
+Summary: 4 findings (3 errors, 1 warning)
+
+Remediation Plan (4 steps)
+────────────────────────────────────────────────────────────
+Step 1: PERM-002 — Use fine-grained permissions instead of 'write-all'.
+Step 2: PERM-002 — Use fine-grained permissions instead of 'write-all'.
+Step 3: RES-001  — Add 'timeout-minutes:' to bound execution time.
+Step 4: SEC-002  — Pass secrets via environment variables instead.
+
+════════════════════════════════════════════════════════════
+Demo complete.
+```
+
+</details>
+
 ### Scan a Local Repository
 
 ```bash
