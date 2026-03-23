@@ -1,14 +1,14 @@
 # Haskell Orchestrator
 
-[![Verified by Haskell Orchestrator Enterprise](https://img.shields.io/badge/Verified%20by-Haskell%20Orchestrator%20Enterprise-blueviolet)](https://github.com/jalsarraf0/Haskell-Orchestrator)
-[![CI](https://github.com/jalsarraf0/Haskell-Orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/jalsarraf0/Haskell-Orchestrator/actions/workflows/ci.yml)
+[![Verified by Haskell Orchestrator Enterprise](https://img.shields.io/badge/Verified%20by-Haskell%20Orchestrator%20Enterprise-blueviolet)](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator)
+[![CI](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator/actions/workflows/ci-haskell.yml/badge.svg)](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator/actions/workflows/ci-haskell.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github)](https://github.com/sponsors/jalsarraf0)
 
 **Workflow standardization, drift detection, and remediation planning for
 GitHub Actions.**
 
-> **Governance Status** — Scanned by [Haskell Orchestrator Enterprise](https://github.com/jalsarraf0/Haskell-Orchestrator) v3.0.3 on 2026-03-22: **0 findings** across 21 governance rules.
+> **Governance Status** — Scanned by [Haskell Orchestrator Enterprise](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator) v3.0.3 on 2026-03-22: **0 findings** across 21 governance rules.
 
 Stop treating CI/CD workflows as one-off configs that nobody reviews.
 Haskell Orchestrator discovers workflow sprawl, detects drift from your
@@ -78,7 +78,7 @@ See `docs/edition-comparison.md` for the full comparison.
 - Executing or monitoring CI/CD pipelines
 - Managing GitHub repository settings
 - Replacing GitHub's built-in security features
-- Providing a web dashboard
+- Providing a hosted/cloud dashboard service
 
 ## Standalone Installation
 
@@ -88,7 +88,7 @@ installed. The released binary is self-contained.
 ### Install from Release Binary (Recommended)
 
 Download the pre-built binary for your platform from the
-[Releases](https://github.com/jalsarraf0/Haskell-Orchestrator/releases)
+[Releases](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator/releases)
 page.
 
 ```bash
@@ -108,7 +108,7 @@ provenance attestation. See "Release Integrity / Verification" below.
 
 ```bash
 # Prerequisites: GHC 9.6.x, Cabal 3.10+
-git clone https://github.com/jalsarraf0/Haskell-Orchestrator.git
+git clone https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator.git
 cd Haskell-Orchestrator
 cabal update
 cabal build
@@ -178,12 +178,16 @@ orchestrator init
 | `validate PATH` | Validate workflow structure |
 | `diff PATH` | Show current issues |
 | `plan PATH` | Generate a remediation plan |
+| `fix PATH` | Auto-fix safe, mechanical issues (`--write` to apply) |
+| `baseline PATH` | Save current findings as baseline for drift detection |
 | `demo` | Run demo with synthetic fixtures (no external access) |
 | `doctor` | Diagnose environment, config, and connectivity |
 | `init` | Create a new .orchestrator.yml config file |
 | `rules` | List all available policy rules |
 | `explain RULE_ID` | Explain a policy rule in detail |
 | `verify` | Verify current configuration |
+| `upgrade-path PATH` | Show what Business/Enterprise editions would add |
+| `ui PATH [--port N]` | Launch embedded web dashboard (default port 8420) |
 
 ### Global Flags
 
@@ -192,6 +196,9 @@ orchestrator init
 | `-c, --config FILE` | Configuration file (default: `.orchestrator.yml`) |
 | `-v, --verbose` | Enable verbose output |
 | `--json` | Output results as JSON |
+| `--sarif` | Output results as SARIF |
+| `--markdown` | Output results as Markdown |
+| `--baseline FILE` | Compare against a saved baseline |
 | `-j, --jobs N` | Number of parallel workers |
 
 ## Configuration Reference
@@ -301,13 +308,13 @@ Each release includes:
 
 ```bash
 # Verify checksum
-sha256sum -c SHA256SUMS-0.1.0.txt
+sha256sum -c SHA256SUMS-3.0.3.txt
 
 # Verify provenance
-gh attestation verify orchestrator-0.1.0-linux-x86_64 --owner jalsarraf0
+gh attestation verify haskell-orchestrator-3.0.3-linux-x86_64.tar.gz --owner Al-Sarraf-Tech
 
 # Inspect SBOM
-python3 -m json.tool sbom-0.1.0.json
+python3 -m json.tool sbom-3.0.3.json
 ```
 
 ## Performance / Resource Model
@@ -335,7 +342,8 @@ resources:
 - GHC 9.6.x
 - Cabal 3.10+
 - Linux x86_64 (primary)
-- macOS and Windows: not tested, may work
+- Windows x86_64 (binary provided)
+- macOS: untested
 
 ## Troubleshooting
 
@@ -438,8 +446,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full development guidelines.
 
 ## Release Flow
 
-1. Tag a version: `git tag v0.1.0`
-2. Push the tag: `git push origin v0.1.0`
+1. Tag a version: `git tag vX.Y.Z`
+2. Push the tag: `git push origin vX.Y.Z`
 3. GitHub Actions builds, tests, and creates a release with artifacts
 
 ## Sponsor This Project

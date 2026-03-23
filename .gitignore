@@ -18,5 +18,8 @@ cabal.project.local~
 *.swp
 *~
 _bin/
+_release/
+staging/
+CLAUDE.md
 firebase-debug.log
 cabal.project.freeze
