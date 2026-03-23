@@ -2,6 +2,16 @@ name: Repository Context Guard
 
 on:
   workflow_call:
+    inputs:
+      caller:
+        description: "Name of the calling workflow (for audit logging)"
+        required: false
+        type: string
+        default: "unknown"
+    outputs:
+      status:
+        description: "Guard result — 'passed' if all checks succeed"
+        value: ${{ jobs.repo-guard.outputs.status }}
 
 permissions: {}
 
@@ -10,9 +20,16 @@ jobs:
     name: Repository Context Guard
     runs-on: [self-hosted, Linux, X64, haskell, unified-all]
     timeout-minutes: 2
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Verify repository ownership
+        shell: bash
         run: |
+          echo "Caller: ${{ inputs.caller }}"
           echo "Repository: ${{ github.repository }}"
           if [ "${{ github.repository }}" != "jalsarraf0/Haskell-Orchestrator" ] && \
              [ "${{ github.repository }}" != "Al-Sarraf-Tech/Haskell-Orchestrator" ]; then
@@ -23,6 +40,7 @@ jobs:
           echo "Repository context verified: ${{ github.repository }}"
 
       - name: Thermal safety check
+        shell: bash
         run: |
           if command -v sensors &>/dev/null; then
             TEMP=$(sensors 2>/dev/null | grep -oP 'Package.*?\+\K[0-9]+' | head -1 || echo "0")
@@ -34,3 +52,8 @@ jobs:
           else
             echo "sensors not available — thermal check skipped"
           fi
+
+      - name: Set guard output
+        id: result
+        shell: bash
+        run: echo "status=passed" >> "$GITHUB_OUTPUT"
