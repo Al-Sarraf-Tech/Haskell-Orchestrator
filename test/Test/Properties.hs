@@ -47,7 +47,8 @@ instance Arbitrary Step where
     suses <- oneof [pure Nothing, Just <$> arbAction]
     srun <- if suses == Nothing then Just <$> arbCommand else pure Nothing
     sif <- oneof [pure Nothing, Just <$> elements ["github.event_name == 'push'", "always()"]]
-    pure $ Step sid sname suses srun Map.empty Map.empty sif
+    sshell <- oneof [pure Nothing, Just <$> elements ["bash", "pwsh", "sh"]]
+    pure $ Step sid sname suses srun Map.empty Map.empty sif sshell
     where
       arbId = elements ["checkout", "build", "test", "deploy", "lint", "setup"]
       arbName = elements ["Checkout", "Build", "Test", "Deploy", "Lint", "Setup"]

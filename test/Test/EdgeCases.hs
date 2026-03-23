@@ -408,13 +408,13 @@ mkMinimalWf = Workflow
 
 mkSimpleJob :: T.Text -> Job
 mkSimpleJob jid = Job jid (Just "Test") (StandardRunner "ubuntu-latest")
-  [Step Nothing (Just "Run") Nothing (Just "echo ok") Map.empty Map.empty Nothing]
+  [Step Nothing (Just "Run") Nothing (Just "echo ok") Map.empty Map.empty Nothing Nothing]
   Nothing [] Nothing Map.empty Nothing (Just 30) Nothing False Nothing False
 
 mkWfWithAction :: T.Text -> Workflow
 mkWfWithAction action = mkMinimalWf
   { wfJobs = [Job "build" (Just "Build") (StandardRunner "ubuntu-latest")
-    [Step Nothing (Just "Action") (Just action) Nothing Map.empty Map.empty Nothing]
+    [Step Nothing (Just "Action") (Just action) Nothing Map.empty Map.empty Nothing Nothing]
     (Just (PermissionsMap (Map.fromList [("contents", PermRead)])))
     [] Nothing Map.empty Nothing (Just 30) Nothing False Nothing False]
   , wfPermissions = Just (PermissionsMap (Map.fromList [("contents", PermRead)]))

@@ -104,4 +104,6 @@ hasRun s = case stepRun s of
   Nothing -> False
 
 hasShell :: Step -> Bool
-hasShell s = Map.member "shell" (stepWith s)
+hasShell s = case stepShell s of
+  Just _  -> True
+  Nothing -> Map.member "shell" (stepWith s)

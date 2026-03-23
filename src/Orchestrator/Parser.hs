@@ -220,8 +220,9 @@ parseStep (Object obj) = Step
   , stepWith = extractEnvMap "with" obj
   , stepEnv  = extractEnvMap "env" obj
   , stepIf   = extractText "if" obj
+  , stepShell = extractText "shell" obj
   }
-parseStep _ = Step Nothing Nothing Nothing Nothing Map.empty Map.empty Nothing
+parseStep _ = Step Nothing Nothing Nothing Nothing Map.empty Map.empty Nothing Nothing
 
 parsePermissions :: Value -> Maybe Permissions
 parsePermissions (String "read-all")  = Just $ PermissionsAll PermRead

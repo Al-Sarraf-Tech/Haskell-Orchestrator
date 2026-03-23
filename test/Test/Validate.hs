@@ -56,5 +56,5 @@ goodWf = Workflow
 
 mkJob :: Text -> Job
 mkJob jid = Job jid (Just "Test") (StandardRunner "ubuntu-latest")
-  [Step Nothing (Just "Run") Nothing (Just "echo ok") Map.empty Map.empty Nothing]
+  [Step Nothing (Just "Run") Nothing (Just "echo ok") Map.empty Map.empty Nothing Nothing]
   Nothing [] Nothing Map.empty Nothing Nothing Nothing False Nothing False

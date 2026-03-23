@@ -75,4 +75,5 @@ minimalStep = Step
   , stepWith = Map.empty
   , stepEnv = Map.empty
   , stepIf = Nothing
+  , stepShell = Nothing
   }

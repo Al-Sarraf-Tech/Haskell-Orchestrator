@@ -90,11 +90,11 @@ goodWorkflow = Workflow
           , jobRunsOn = StandardRunner "ubuntu-latest"
           , jobSteps =
               [ Step (Just "checkout") (Just "Checkout")
-                  (Just "actions/checkout@v4") Nothing Map.empty Map.empty Nothing
+                  (Just "actions/checkout@v4") Nothing Map.empty Map.empty Nothing Nothing
               , Step Nothing (Just "Build")
-                  Nothing (Just "make build") Map.empty Map.empty Nothing
+                  Nothing (Just "make build") Map.empty Map.empty Nothing Nothing
               , Step Nothing (Just "Test")
-                  Nothing (Just "make test") Map.empty Map.empty Nothing
+                  Nothing (Just "make test") Map.empty Map.empty Nothing Nothing
               ]
           , jobPermissions = Just (PermissionsMap (Map.fromList [("contents", PermRead)]))
           , jobNeeds = []
@@ -131,9 +131,9 @@ problematicWorkflow = Workflow
           , jobRunsOn = StandardRunner "ubuntu-latest"
           , jobSteps =
               [ Step Nothing (Just "Checkout")
-                  (Just "actions/checkout@v4") Nothing Map.empty Map.empty Nothing
+                  (Just "actions/checkout@v4") Nothing Map.empty Map.empty Nothing Nothing
               , Step Nothing (Just "Deploy")
-                  (Just "third-party/deploy-action@v2") Nothing Map.empty Map.empty Nothing
+                  (Just "third-party/deploy-action@v2") Nothing Map.empty Map.empty Nothing Nothing
               ]
           , jobPermissions = Nothing
           , jobNeeds = []
@@ -166,11 +166,11 @@ insecureWorkflow = Workflow
           , jobRunsOn = StandardRunner "ubuntu-latest"
           , jobSteps =
               [ Step Nothing (Just "Checkout")
-                  (Just "actions/checkout@v4") Nothing Map.empty Map.empty Nothing
+                  (Just "actions/checkout@v4") Nothing Map.empty Map.empty Nothing Nothing
               , Step Nothing (Just "Publish")
                   Nothing
                   (Just "echo \"Publishing with token: ${{ secrets.DEPLOY_TOKEN }}\"")
-                  Map.empty Map.empty Nothing
+                  Map.empty Map.empty Nothing Nothing
               ]
           , jobPermissions = Just (PermissionsAll PermWrite)
           , jobNeeds = []

@@ -72,6 +72,7 @@ data Step = Step
   , stepWith  :: !EnvMap
   , stepEnv   :: !EnvMap
   , stepIf    :: !(Maybe Text)
+  , stepShell :: !(Maybe Text)
   } deriving stock (Eq, Show)
 
 -- | A job within a workflow.
