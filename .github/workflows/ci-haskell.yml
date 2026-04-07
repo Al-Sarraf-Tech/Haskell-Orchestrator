@@ -98,6 +98,8 @@ jobs:
     runs-on: [self-hosted, Linux, X64, haskell, unified-all]
     needs: [build-and-test]
     timeout-minutes: 10
+    env:
+      CABAL_DIR: ${{ github.workspace }}/.cabal
 
     steps:
       - name: Checkout
@@ -109,9 +111,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cabal/store
+            ${{ github.workspace }}/.cabal/store
             dist-newstyle
-          key: ${{ runner.os }}-cabal-${{ hashFiles('orchestrator.cabal') }}
+          key: ${{ runner.os }}-cabal-selfcheck-${{ hashFiles('orchestrator.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-cabal-selfcheck-
+            ${{ runner.os }}-cabal-
+
+      - name: Update package index
+        run: cabal update
 
       - name: Run Orchestrator against own workflows
         run: |
