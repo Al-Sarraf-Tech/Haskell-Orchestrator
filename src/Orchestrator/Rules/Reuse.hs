@@ -23,6 +23,7 @@ reuseInputValidationRule = PolicyRule
   , ruleDescription = "Reusable workflows (workflow_call) should declare explicit inputs"
   , ruleSeverity = Warning
   , ruleCategory = Structure
+  , ruleTags = [TagStructure]
   , ruleCheck = \wf ->
       let hasWorkflowCall = any isWorkflowCallTrigger (wfTriggers wf)
           -- A workflow_call without inputs is suspicious — it means the
@@ -59,6 +60,7 @@ reuseUnusedOutputRule = PolicyRule
   , ruleDescription = "Detect reusable workflows that define outputs but never set them"
   , ruleSeverity = Info
   , ruleCategory = Structure
+  , ruleTags = [TagStructure]
   , ruleCheck = \wf ->
       let hasWorkflowCall = any isWorkflowCallTrigger (wfTriggers wf)
           -- Check if any step sets outputs via GITHUB_OUTPUT

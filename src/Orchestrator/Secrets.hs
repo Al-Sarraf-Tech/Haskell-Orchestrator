@@ -55,6 +55,7 @@ secretScopeRule = PolicyRule
   , ruleDescription = "Flag secrets referenced in more than 3 jobs"
   , ruleSeverity    = Warning
   , ruleCategory    = Security
+  , ruleTags        = [TagSecurity]
   , ruleCheck       = \wf ->
       let refs   = analyzeSecrets wf
           scopes = buildSecretScopes refs

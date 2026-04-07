@@ -140,6 +140,7 @@ actionHealthRule = PolicyRule
   , ruleDescription = "Detect deprecated, unpinned, or unhealthy action references"
   , ruleSeverity    = Warning
   , ruleCategory    = Security
+  , ruleTags        = [TagSecurity]
   , ruleCheck       = \wf ->
       let actions   = catalogActions wf
           unhealthy = filter (\ai -> checkActionHealth ai /= Healthy) actions

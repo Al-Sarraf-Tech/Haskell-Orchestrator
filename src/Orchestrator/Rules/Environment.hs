@@ -21,6 +21,7 @@ envApprovalGateRule = PolicyRule
   , ruleDescription = "Deployment workflows should use environment protection rules"
   , ruleSeverity = Warning
   , ruleCategory = Security
+  , ruleTags = [TagSecurity]
   , ruleCheck = \wf ->
       let isDeployLike = isDeploymentWorkflow wf
           hasEnvRef = any jobReferencesEnvironment (wfJobs wf)
@@ -56,6 +57,7 @@ envMissingUrlRule = PolicyRule
   , ruleDescription = "Environment deployments should set environment_url for visibility"
   , ruleSeverity = Info
   , ruleCategory = Structure
+  , ruleTags = [TagSecurity]
   , ruleCheck = \wf ->
       concatMap (\j ->
         let refsEnv = jobReferencesEnvironment j

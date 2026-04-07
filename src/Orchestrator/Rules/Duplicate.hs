@@ -23,6 +23,7 @@ duplicateJobRule = PolicyRule
   , ruleDescription = "Detect copy-pasted job blocks across workflow files"
   , ruleSeverity = Info
   , ruleCategory = Duplication
+  , ruleTags = [TagStyle]
   , ruleCheck = \wf ->
       -- This rule produces findings at the workflow level.
       -- For cross-workflow detection, a multi-workflow variant exists

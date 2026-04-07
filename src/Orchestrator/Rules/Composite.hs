@@ -22,6 +22,7 @@ compositeDescriptionRule = PolicyRule
   , ruleDescription = "Composite actions and reusable workflows should have meaningful descriptions"
   , ruleSeverity = Info
   , ruleCategory = Naming
+  , ruleTags = [TagStyle]
   , ruleCheck = \wf ->
       let hasCall = any isWorkflowCall (wfTriggers wf)
           hasShortName = T.length (wfName wf) < 5
@@ -56,6 +57,7 @@ compositeShellRule = PolicyRule
   , ruleDescription = "Run steps in reusable workflows should specify shell explicitly"
   , ruleSeverity = Info
   , ruleCategory = Structure
+  , ruleTags = [TagStyle]
   , ruleCheck = \wf ->
       let hasCall = any isWorkflowCall (wfTriggers wf)
           -- Count run steps without explicit shell in their 'with' map

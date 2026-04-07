@@ -24,6 +24,7 @@ matrixExplosionRule = PolicyRule
   , ruleDescription = "Detect matrix strategies that may create excessive job combinations"
   , ruleSeverity = Warning
   , ruleCategory = Structure
+  , ruleTags = [TagPerformance, TagCost]
   , ruleCheck = \wf ->
       concatMap (\j -> case jobRunsOn j of
         MatrixRunner _ -> checkMatrixExplosion wf j
@@ -42,6 +43,7 @@ matrixFailFastRule = PolicyRule
   , ruleDescription = "Matrix jobs should set fail-fast to control failure behavior"
   , ruleSeverity = Info
   , ruleCategory = Structure
+  , ruleTags = [TagPerformance, TagCost]
   , ruleCheck = \wf ->
       concatMap (\j ->
         let isMatrix = case jobRunsOn j of

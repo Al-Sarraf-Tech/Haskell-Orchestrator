@@ -5,6 +5,7 @@ module Orchestrator.Types
   , Finding (..)
   , mkFinding'
   , FindingCategory (..)
+  , RuleTag (..)
   , ScanTarget (..)
   , ScanResult (..)
   , RemediationStep (..)
@@ -34,6 +35,18 @@ data FindingCategory
   | Structure
   | Duplication
   | Drift
+  | Performance
+  | Cost
+  | SupplyChain
+  deriving stock (Eq, Ord, Show, Read, Enum, Bounded)
+
+-- | Tags for cross-cutting classification of policy rules.
+data RuleTag
+  = TagSecurity
+  | TagPerformance
+  | TagCost
+  | TagStyle
+  | TagStructure
   deriving stock (Eq, Ord, Show, Read, Enum, Bounded)
 
 -- | Effort level for remediation.

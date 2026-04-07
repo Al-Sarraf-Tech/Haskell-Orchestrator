@@ -113,6 +113,7 @@ complexityRule = PolicyRule
   , ruleDescription = "Flag workflows with high complexity scores (>= 7)"
   , ruleSeverity    = Warning
   , ruleCategory    = Structure
+  , ruleTags        = [TagStructure]
   , ruleCheck       = \wf ->
       let cs = computeComplexity wf
       in [ Finding

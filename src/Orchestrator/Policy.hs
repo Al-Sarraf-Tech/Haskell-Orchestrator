@@ -49,6 +49,7 @@ data PolicyRule = PolicyRule
   , ruleDescription :: !Text
   , ruleSeverity    :: !Severity
   , ruleCategory    :: !FindingCategory
+  , ruleTags        :: ![RuleTag]
   , ruleCheck       :: Workflow -> [Finding]
   }
 
@@ -86,6 +87,7 @@ customRuleToPolicy crc = PolicyRule
   , ruleDescription = "Custom rule: " <> crcName crc
   , ruleSeverity    = parseSeverity (crcSeverity crc)
   , ruleCategory    = parseCategory (crcCategory crc)
+  , ruleTags        = []
   , ruleCheck       = \wf ->
       [Finding
           { findingSeverity    = parseSeverity (crcSeverity crc)
@@ -180,8 +182,12 @@ parseCategory t = case T.toLower t of
   "security"     -> Security
   "structure"    -> Structure
   "duplication"  -> Duplication
-  "drift"        -> Drift
-  _              -> Structure
+  "drift"         -> Drift
+  "performance"   -> Performance
+  "cost"          -> Cost
+  "supplychain"   -> SupplyChain
+  "supply_chain"  -> SupplyChain
+  _               -> Structure
 
 -- | The default community policy pack.
 defaultPolicyPack :: PolicyPack
@@ -230,6 +236,7 @@ permissionsRequiredRule = PolicyRule
   , ruleDescription = "Workflows should declare explicit permissions"
   , ruleSeverity = Warning
   , ruleCategory = Permissions
+  , ruleTags = [TagSecurity]
   , ruleCheck = \wf ->
       case wfPermissions wf of
         Nothing ->
@@ -250,6 +257,7 @@ broadPermissionsRule = PolicyRule
   , ruleDescription = "Detect overly broad permission grants"
   , ruleSeverity = Error
   , ruleCategory = Permissions
+  , ruleTags = [TagSecurity]
   , ruleCheck = \wf ->
       let fp = wfFileName wf
           chk label perms = case perms of
@@ -270,6 +278,7 @@ selfHostedRunnerRule = PolicyRule
   , ruleDescription = "Flag jobs using non-standard or self-hosted runners"
   , ruleSeverity = Info
   , ruleCategory = Runners
+  , ruleTags = [TagStructure]
   , ruleCheck = \wf ->
       concatMap (\j -> case jobRunsOn j of
         CustomLabel label
@@ -291,6 +300,7 @@ missingConcurrencyRule = PolicyRule
   , ruleDescription = "PR workflows should set concurrency cancellation"
   , ruleSeverity = Info
   , ruleCategory = Concurrency
+  , ruleTags = [TagPerformance]
   , ruleCheck = \wf ->
       let hasPR = any isPRTrigger (wfTriggers wf)
       in [ mkFinding Info Concurrency "CONC-001"
@@ -313,6 +323,7 @@ unpinnedActionRule = PolicyRule
   , ruleDescription = "Third-party actions should be pinned to a commit SHA"
   , ruleSeverity = Warning
   , ruleCategory = Security
+  , ruleTags = [TagSecurity]
   , ruleCheck = \wf ->
       concatMap (concatMap (\s -> case stepUses s of
           Just uses
@@ -345,6 +356,7 @@ missingTimeoutRule = PolicyRule
   , ruleDescription = "Jobs should set timeout-minutes to prevent runaway builds"
   , ruleSeverity = Warning
   , ruleCategory = Structure
+  , ruleTags = [TagStructure, TagPerformance]
   , ruleCheck = \wf ->
       concatMap (\j ->
         -- Skip reusable workflow caller jobs (uses: at job level).
@@ -369,6 +381,7 @@ workflowNamingRule = PolicyRule
   , ruleDescription = "Workflow names should be descriptive"
   , ruleSeverity = Info
   , ruleCategory = Naming
+  , ruleTags = [TagStyle]
   , ruleCheck = \wf ->
       [ mkFinding Info Naming "NAME-001"
                "Workflow has a very short or missing name."
@@ -385,6 +398,7 @@ jobNamingRule = PolicyRule
   , ruleDescription = "Job IDs should use kebab-case"
   , ruleSeverity = Info
   , ruleCategory = Naming
+  , ruleTags = [TagStyle]
   , ruleCheck = \wf ->
       concatMap (\j ->
         [ mkFinding Info Naming "NAME-002"
@@ -406,6 +420,7 @@ triggerWildcardRule = PolicyRule
   , ruleDescription = "Detect triggers matching all branches"
   , ruleSeverity = Info
   , ruleCategory = Triggers
+  , ruleTags = [TagSecurity]
   , ruleCheck = \wf ->
       concatMap (\case
         TriggerEvents evts -> concatMap (\e ->
@@ -427,6 +442,7 @@ secretInRunRule = PolicyRule
   , ruleDescription = "Detect direct secret references in shell commands"
   , ruleSeverity = Error
   , ruleCategory = Security
+  , ruleTags = [TagSecurity]
   , ruleCheck = \wf ->
       concatMap (concatMap (\s -> case stepRun s of
           Just cmd

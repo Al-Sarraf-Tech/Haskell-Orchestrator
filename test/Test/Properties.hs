@@ -21,7 +21,7 @@ instance Arbitrary Severity where
   arbitrary = elements [Info, Warning, Error, Critical]
 
 instance Arbitrary FindingCategory where
-  arbitrary = elements [Permissions, Runners, Triggers, Naming, Concurrency, Security, Structure, Duplication, Drift]
+  arbitrary = elements [Permissions, Runners, Triggers, Naming, Concurrency, Security, Structure, Duplication, Drift, Performance, Cost, SupplyChain]
 
 instance Arbitrary PermissionLevel where
   arbitrary = elements [PermNone, PermRead, PermWrite]

@@ -151,6 +151,7 @@ permissionsMinimumRule = PolicyRule
   , ruleDescription = "Declared permissions exceed the minimum required by actions used"
   , ruleSeverity    = Warning
   , ruleCategory    = Permissions
+  , ruleTags        = [TagSecurity]
   , ruleCheck       = \wf ->
       let pa = analyzePermissions wf
       in [ Finding
