@@ -2,20 +2,24 @@ module Test.Integration (tests) where
 
 import Data.ByteString.Char8 qualified as BS
 import Data.Either (rights)
+import Data.Maybe (isNothing)
 import Data.Text qualified as T
+import Orchestrator.Diff
 import Orchestrator.Model
 import Orchestrator.Parser
 import Orchestrator.Policy
+import Orchestrator.Policy.Extended (extendedPolicyPack)
+import Orchestrator.Tags (filterByTags)
 import Orchestrator.Types
 import Orchestrator.Validate
-import Orchestrator.Diff
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (testCase, assertBool)
+import Test.Tasty.HUnit (testCase, assertBool, (@?=))
 
 tests :: TestTree
 tests = testGroup "Integration"
   [ realWorldPatterns
   , endToEndFlows
+  , extendedPackTests
   ]
 
 ------------------------------------------------------------------------
@@ -260,4 +264,53 @@ endToEndFlows = testGroup "End-to-End Flows"
       assertBool "Both should parse" (length workflows == 2)
       let results = validateWorkflows workflows
       assertBool "Both should validate" (length results == 2)
+  ]
+
+------------------------------------------------------------------------
+-- Extended policy pack tests
+------------------------------------------------------------------------
+
+extendedPackTests :: TestTree
+extendedPackTests = testGroup "Extended Policy Pack"
+  [ testCase "Extended pack has 36 rules" $
+      length (packRules extendedPolicyPack) @?= 36
+
+  , testCase "Tag filtering produces subset" $ do
+      let allRules = packRules extendedPolicyPack
+          secRules = filterByTags [TagSecurity] allRules
+      assertBool "Security-tagged rules < total rules"
+        (length secRules < length allRules)
+      assertBool "At least one security-tagged rule"
+        (not (null secRules))
+
+  , testCase "All rules have non-empty tags" $ do
+      let allRules = packRules extendedPolicyPack
+          emptyTagRules = filter (null . ruleTags) allRules
+      assertBool
+        ("No rule should have empty tags, but found: "
+          ++ show (map ruleId emptyTagRules))
+        (null emptyTagRules)
+
+  , testCase "All findings from extended pack have remediation" $ do
+      let yaml = BS.pack $ unlines
+            [ "name: minimal"
+            , "on: push"
+            , "jobs:"
+            , "  build:"
+            , "    runs-on: ubuntu-latest"
+            , "    steps:"
+            , "      - uses: some-org/action@main"
+            , "      - run: echo test"
+            ]
+      case parseWorkflowBS "minimal.yml" yaml of
+        Left err -> error $ "Parse failed: " ++ show err
+        Right wf -> do
+          let findings = evaluatePolicies extendedPolicyPack wf
+          assertBool "Should have findings" (not (null findings))
+          let noRemediation = filter (isNothing . findingRemediation) findings
+          assertBool
+            ("All findings should have remediation, but " ++
+              show (length noRemediation) ++ " lack it: " ++
+              show (map findingRuleId noRemediation))
+            (null noRemediation)
   ]

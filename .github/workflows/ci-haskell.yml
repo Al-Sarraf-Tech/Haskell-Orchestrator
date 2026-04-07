@@ -92,3 +92,27 @@ jobs:
             exit 1
           fi
           echo "Capability contract check passed — Community tier only"
+
+  orchestrator-self-check:
+    name: "Orchestrator Self-Check"
+    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
+    needs: [build-and-test]
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Restore cabal cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-cabal-${{ hashFiles('orchestrator.cabal') }}
+
+      - name: Run Orchestrator against own workflows
+        run: |
+          cabal run orchestrator -- scan .github/workflows/ --fail-on error

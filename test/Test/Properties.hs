@@ -3,15 +3,20 @@ module Test.Properties (tests) where
 
 import Data.Maybe (isNothing)
 import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Data.Text qualified as T
+import Orchestrator.Diff
+import Orchestrator.Gate (gateFindings)
 import Orchestrator.Model
 import Orchestrator.Policy
+import Orchestrator.Render
+import Orchestrator.Suppress (applySuppression)
+import Orchestrator.Tags (filterByTags)
 import Orchestrator.Types
 import Orchestrator.Validate
-import Orchestrator.Diff
-import Orchestrator.Render
+import System.Exit (ExitCode (..))
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.QuickCheck (testProperty, Arbitrary (..), elements, listOf, oneof, choose)
+import Test.Tasty.QuickCheck (testProperty, Arbitrary (..), arbitraryBoundedEnum, elements, listOf, oneof, choose)
 
 ------------------------------------------------------------------------
 -- Arbitrary instances
@@ -142,6 +147,9 @@ instance Arbitrary Finding where
 instance Arbitrary Effort where
   arbitrary = elements [LowEffort, MediumEffort, HighEffort]
 
+instance Arbitrary RuleTag where
+  arbitrary = arbitraryBoundedEnum
+
 ------------------------------------------------------------------------
 -- Properties
 ------------------------------------------------------------------------
@@ -201,6 +209,33 @@ tests = testGroup "Properties"
   , testProperty "Render summary produces non-empty text for non-empty findings" $
       \(findings :: [Finding]) ->
         null findings || not (T.null (renderSummary findings))
+
+  , testProperty "FindingCategory values satisfy minBound <= x <= maxBound" $
+      \(c :: FindingCategory) ->
+        c >= minBound && c <= maxBound
+
+  , testProperty "RuleTag values satisfy minBound <= x <= maxBound" $
+      \(t :: RuleTag) ->
+        t >= minBound && t <= maxBound
+
+  , testProperty "Suppression idempotence: applying twice equals once" $
+      \(findings :: [Finding]) ->
+        let suppressed = Set.fromList (map findingRuleId findings)
+            once = applySuppression suppressed findings
+            twice = applySuppression suppressed once
+        in once == twice
+
+  , testProperty "Gating with Info threshold fails on any non-empty findings" $
+      \(findings :: [Finding]) ->
+        null findings || gateFindings Info findings == ExitFailure 1
+
+  , testProperty "Empty suppression returns all findings" $
+      \(findings :: [Finding]) ->
+        length (applySuppression Set.empty findings) == length findings
+
+  , testProperty "Tag filtering with empty tags returns all rules" $
+      let rules = packRules defaultPolicyPack
+      in length (filterByTags [] rules) == length rules
   ]
 
 instance Arbitrary ScanTarget where
