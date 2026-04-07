@@ -22,6 +22,8 @@ data Options = Options
   , optOutput     :: !OutputMode
   , optJobs       :: !(Maybe Int)
   , optBaseline   :: !(Maybe FilePath)
+  , optFailOn     :: !(Maybe Text)
+  , optTags       :: ![Text]
   , optCommand    :: !Command
   } deriving stock (Show)
 
@@ -49,7 +51,7 @@ parseOptions = info (optionsParser <**> helper)
     <> header "orchestrator — GitHub Actions workflow standardization and governance"
     <> progDesc "Discover workflow sprawl, detect drift, validate against policies, \
                 \and generate remediation plans. Run 'orchestrator demo' for a quick tour."
-    <> footer (T.unpack $ orchestratorEdition <> " Edition v" <> orchestratorVersion <> " — 21 built-in rules. \
+    <> footer (T.unpack $ orchestratorEdition <> " Edition v" <> orchestratorVersion <> " — 36 built-in rules. \
               \For multi-repo batch scanning, see Business edition. \
               \For org-wide governance, see Enterprise edition.")
   )
@@ -79,6 +81,16 @@ optionsParser = Options
         <> metavar "FILE"
         <> help "Compare against a saved baseline (show only new findings)"
         ))
+  <*> optional (strOption
+        ( long "fail-on"
+        <> metavar "SEVERITY"
+        <> help "Exit with failure if any finding meets or exceeds SEVERITY (info|warning|error|critical)"
+        ))
+  <*> many (T.pack <$> strOption
+        ( long "tags"
+        <> metavar "TAG"
+        <> help "Filter rules by tag (security|performance|cost|style|structure). Repeatable."
+        ))
   <*> commandParser
 
 outputModeParser :: Parser OutputMode
@@ -92,7 +104,7 @@ commandParser :: Parser Command
 commandParser = subparser
   ( command "scan"
       (info (CmdScan <$> pathArg)
-        (progDesc "Scan workflows and evaluate policies (21 rules)"))
+        (progDesc "Scan workflows and evaluate policies (36 rules)"))
   <> command "validate"
       (info (CmdValidate <$> pathArg)
         (progDesc "Validate workflow structure"))

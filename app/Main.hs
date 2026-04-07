@@ -1,7 +1,7 @@
 module Main (main) where
 
 import CLI (Command (..), Options (..), OutputMode (..), parseOptions)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
@@ -11,9 +11,11 @@ import Orchestrator.Config (OrchestratorConfig (..), defaultConfig)
 import Orchestrator.Demo (runDemo)
 import Orchestrator.Diff (generatePlan, renderPlanText)
 import Orchestrator.Fix (FixConfig (..), analyzeFixable, applyFixes, defaultFixConfig)
+import Orchestrator.Gate (gateFindings, parseFailOn)
 import Orchestrator.Policy
     ( PolicyPack (..), PolicyRule (..) )
 import Orchestrator.Policy.Extended (extendedPolicyPack)
+import Orchestrator.Tags (filterByTags, parseRuleTag)
 import Orchestrator.Render
     ( renderFindings, renderFindingsJSON, renderSummary )
 import Orchestrator.Render.Markdown (renderMarkdownFindings, renderMarkdownSummary)
@@ -41,16 +43,19 @@ main = do
     CmdPlan p          -> runPlan opts p
     CmdDiff p          -> runPlan opts p
     CmdFix p write     -> runFix opts p write
-    CmdExplain rid     -> runExplain rid
-    CmdRules           -> runRules
+    CmdExplain rid     -> runExplain opts rid
+    CmdRules           -> runRules opts
     CmdVerify          -> runVerify opts
     CmdBaseline p      -> runBaseline opts p
     CmdUpgradePath p   -> runUpgradePath opts p
     CmdUI p mPort      -> runUI p mPort
 
--- | Select the policy pack to use.
-activePack :: PolicyPack
-activePack = extendedPolicyPack
+-- | Select the policy pack to use, optionally filtering by tags.
+activePack :: Options -> PolicyPack
+activePack opts =
+  let base = extendedPolicyPack
+      tags = mapMaybe parseRuleTag (optTags opts)
+  in base { packRules = filterByTags tags (packRules base) }
 
 -- | Render findings according to the selected output mode.
 renderOutput :: OutputMode -> [Finding] -> Text
@@ -68,7 +73,7 @@ findingsExitCode fs
 
 runScan :: Options -> FilePath -> IO ()
 runScan opts path = do
-  let pack = activePack
+  let pack = activePack opts
       scfg = cfgScan defaultConfig
   result <- scanLocalPath pack scfg path
   case result of
@@ -82,7 +87,10 @@ runScan opts path = do
       TIO.putStrLn $ "Rules active: " <> T.pack (show (length (packRules pack)))
       TIO.putStrLn ""
       TIO.putStrLn $ renderOutput (optOutput opts) findings
-      exitWith (findingsExitCode findings)
+      let exitCode = case optFailOn opts >>= parseFailOn of
+            Just threshold -> gateFindings threshold findings
+            Nothing        -> findingsExitCode findings
+      exitWith exitCode
 
 runValidate :: Options -> FilePath -> IO ()
 runValidate opts path = do
@@ -102,7 +110,7 @@ runValidate opts path = do
 
 runPlan :: Options -> FilePath -> IO ()
 runPlan opts path = do
-  let pack = activePack
+  let pack = activePack opts
       scfg = cfgScan defaultConfig
   result <- scanLocalPath pack scfg path
   case result of
@@ -142,7 +150,7 @@ runDoctor opts = do
   TIO.putStrLn (T.replicate 50 "═")
   TIO.putStrLn ""
 
-  let PolicyPack pname rules = activePack
+  let PolicyPack pname rules = activePack opts
   TIO.putStrLn $ "Policy pack:     " <> pname <> " (" <> T.pack (show (length rules)) <> " rules)"
 
   cfgExists <- doesFileExist ".orchestrator.yml"
@@ -166,7 +174,7 @@ runDoctor opts = do
 
   TIO.putStrLn ""
   TIO.putStrLn $ "Edition:         " <> orchestratorEdition <> " v" <> orchestratorVersion
-  TIO.putStrLn "                 21 built-in rules (10 standard + 11 extended)"
+  TIO.putStrLn "                 36 built-in rules (10 standard + 11 extended + 15 v4)"
   TIO.putStrLn ""
   TIO.putStrLn "Output formats:  text, json, sarif, markdown"
   TIO.putStrLn "                 For multi-repo batch scanning, see Business edition."
@@ -218,9 +226,9 @@ runInit = do
       TIO.putStrLn "  orchestrator demo              # Try the demo"
       TIO.putStrLn "  orchestrator doctor            # Check environment"
 
-runExplain :: T.Text -> IO ()
-runExplain rid = do
-  let PolicyPack _ rules = activePack
+runExplain :: Options -> T.Text -> IO ()
+runExplain opts rid = do
+  let PolicyPack _ rules = activePack opts
       match = filter (\r -> ruleId r == rid) rules
   case match of
     [] -> do
@@ -237,9 +245,9 @@ runExplain rid = do
       TIO.putStrLn $ "Category:    " <> T.pack (show (ruleCategory r))
       TIO.putStrLn $ "Description: " <> ruleDescription r
 
-runRules :: IO ()
-runRules = do
-  let PolicyPack pname rules = activePack
+runRules :: Options -> IO ()
+runRules opts = do
+  let PolicyPack pname rules = activePack opts
   TIO.putStrLn $ "Policy Pack: " <> pname
   TIO.putStrLn $ T.replicate 70 "─"
   TIO.putStrLn $ padRight 14 "RULE ID" <> padRight 10 "SEVERITY" <> padRight 14 "CATEGORY" <> "NAME"
@@ -256,21 +264,21 @@ runRules = do
     padRight n t = T.take n (t <> T.replicate n " ")
 
 runVerify :: Options -> IO ()
-runVerify _opts = do
+runVerify opts = do
   TIO.putStrLn "Configuration verification:"
   cfgExists <- doesFileExist ".orchestrator.yml"
   if cfgExists
     then TIO.putStrLn "  Config file:   .orchestrator.yml (found, valid)"
     else TIO.putStrLn "  Config file:   not found (defaults will be used)"
-  let PolicyPack pname rules = activePack
+  let PolicyPack pname rules = activePack opts
   TIO.putStrLn $ "  Policy pack:   " <> pname <> " (" <> T.pack (show (length rules)) <> " rules)"
   TIO.putStrLn "  Output formats: text, json, sarif, markdown"
   TIO.putStrLn ""
   TIO.putStrLn "Verification complete."
 
 runBaseline :: Options -> FilePath -> IO ()
-runBaseline _opts path = do
-  let pack = activePack
+runBaseline opts path = do
+  let pack = activePack opts
       scfg = cfgScan defaultConfig
   result <- scanLocalPath pack scfg path
   case result of
@@ -286,8 +294,8 @@ runBaseline _opts path = do
       TIO.putStrLn "Future scans with --baseline will only show new findings."
 
 runUpgradePath :: Options -> FilePath -> IO ()
-runUpgradePath _opts path = do
-  let pack = activePack
+runUpgradePath opts path = do
+  let pack = activePack opts
       scfg = cfgScan defaultConfig
   result <- scanLocalPath pack scfg path
   case result of

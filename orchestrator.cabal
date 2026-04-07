@@ -65,6 +65,9 @@ library
     Orchestrator.Rules.Matrix
     Orchestrator.Rules.Reuse
     Orchestrator.Scan
+    Orchestrator.Suppress
+    Orchestrator.Gate
+    Orchestrator.Tags
     Orchestrator.Secrets
     Orchestrator.Simulate
     Orchestrator.Simulate.Conditions
@@ -128,6 +131,9 @@ test-suite orchestrator-test
     Test.EdgeCases
     Test.Properties
     Test.Integration
+    Test.Tags
+    Test.Suppress
+    Test.Gate
   build-depends:
     , base            >=4.18  && <4.20
     , bytestring      >=0.11  && <0.13

@@ -12,6 +12,9 @@ import Test.Golden qualified
 import Test.EdgeCases qualified
 import Test.Properties qualified
 import Test.Integration qualified
+import Test.Tags qualified
+import Test.Suppress qualified
+import Test.Gate qualified
 
 main :: IO ()
 main = defaultMain $ testGroup "Orchestrator"
@@ -26,4 +29,7 @@ main = defaultMain $ testGroup "Orchestrator"
   , Test.EdgeCases.tests
   , Test.Properties.tests
   , Test.Integration.tests
+  , Test.Tags.tests
+  , Test.Suppress.tests
+  , Test.Gate.tests
   ]
