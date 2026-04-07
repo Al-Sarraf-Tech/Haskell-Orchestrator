@@ -6,8 +6,8 @@ packages: .
 -- Reproducibility
 index-state: 2026-03-01T00:00:00Z
 
--- Build options
-jobs: $ncpus
+-- Build options — cap at 6 cores to stay under 70°C thermal limit on amarillo
+jobs: 6
 
 -- Test options
 tests: True

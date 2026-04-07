@@ -106,7 +106,7 @@ executable orchestrator
   import:           warnings
   default-language: GHC2021
   default-extensions: DerivingStrategies OverloadedStrings
-  ghc-options:      -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:      -threaded -rtsopts -with-rtsopts=-N6
   hs-source-dirs:   app
   main-is:          Main.hs
   other-modules:
