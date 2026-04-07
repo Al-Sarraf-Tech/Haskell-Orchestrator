@@ -1,111 +1,108 @@
 # Haskell Orchestrator
 
-[![Verified by Haskell Orchestrator Enterprise](https://img.shields.io/badge/Verified%20by-Haskell%20Orchestrator%20Enterprise-blueviolet)](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator)
 [![CI](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator/actions/workflows/ci-haskell.yml/badge.svg)](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator/actions/workflows/ci-haskell.yml)
+[![Version](https://img.shields.io/badge/version-4.0.0-blue)](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github)](https://github.com/sponsors/jalsarraf0)
+[![Verified by Haskell Orchestrator](https://img.shields.io/badge/self--checked-36%20rules%20%7C%200%20findings-brightgreen)](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator)
+[![Sponsor](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-pink?logo=github)](https://github.com/sponsors/jalsarraf0)
 
-**Workflow standardization, drift detection, and remediation planning for
-GitHub Actions.**
+**Typed analysis engine for GitHub Actions workflows.**
 
-> **Governance Status** — Scanned by [Haskell Orchestrator Enterprise](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator) v3.0.4 on 2026-03-22: **0 findings** across 21 governance rules.
+Haskell Orchestrator parses workflow YAML into a typed domain model, evaluates
+36 configurable policy rules, and produces deterministic remediation plans —
+without modifying any files. It covers security, supply chain, performance,
+cost, structure, and drift concerns in a single pass.
 
-Stop treating CI/CD workflows as one-off configs that nobody reviews.
-Haskell Orchestrator discovers workflow sprawl, detects drift from your
-standards, validates against configurable policies, and generates clean
-remediation plans — all without modifying a single file.
+> This is not a YAML linter. It understands GitHub Actions semantics:
+> permissions scopes, action pinning, job graph cycles, matrix explosion,
+> environment gates, concurrency, and more.
 
-This is **not** a YAML linter. It is a typed analysis engine that understands
-the semantics of GitHub Actions workflows: permissions scopes, runner
-selection, action pinning, concurrency, trigger patterns, and more.
+---
 
-## Problem Statement
+## Table of Contents
 
-As organizations grow, GitHub Actions workflows drift:
-- Permissions become overly broad (`write-all` everywhere)
-- Third-party actions go unpinned (supply-chain risk)
-- Timeouts disappear (runaway builds burn resources)
-- Naming conventions break down
-- Security hygiene degrades silently
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [CI Integration](#ci-integration)
+- [Rules Reference](#rules-reference)
+- [Inline Suppression](#inline-suppression)
+- [CLI Reference](#cli-reference)
+- [Configuration](#configuration)
+- [Edition Comparison](#edition-comparison)
+- [Safety Model](#safety-model)
+- [Development](#development)
+- [License](#license)
 
-Manual review across dozens of repos is impractical.  Linters catch syntax
-errors but miss semantic issues.  GitHub's built-in tools focus on
-vulnerability scanning, not workflow governance.
+---
 
-Haskell Orchestrator fills this gap with a typed, policy-driven analysis
-engine that produces clear, actionable, deterministic findings.
-
-## Design Goals
-
-- **Safe by default** — read-only analysis, no filesystem modification
-- **Explicit targets only** — no automatic repo discovery or home-dir crawling
-- **Typed correctness** — Haskell's type system enforces model integrity
-- **Deterministic output** — same input always produces same findings
-- **Policy-driven** — configurable rules with severity levels
-- **Operator-friendly** — clear CLI, excellent help text, useful errors
-- **Resource-bounded** — conservative defaults, tunable parallelism
-
-## Editions
-
-This is the **Community Edition** — free and open source.
-
-| Feature | Community | Business | Enterprise |
-|---------|:---------:|:--------:|:----------:|
-| Single-repo scanning | Yes | Yes | Yes |
-| 10 standard policy rules | Yes | Yes | Yes |
-| 11 extended policy rules | Yes | Yes | Yes |
-| Structural validation | Yes | Yes | Yes |
-| Diff / remediation plans | Yes | Yes | Yes |
-| JSON + text output | Yes | Yes | Yes |
-| Demo mode | Yes | Yes | Yes |
-| Multi-repo batch scanning | — | Yes | Yes |
-| HTML / CSV reports | — | Yes | Yes |
-| Team policy rules (+4) | — | Yes | Yes |
-| Prioritized remediation | — | Yes | Yes |
-| Org-wide governance | — | — | Yes |
-| Audit trail | — | — | Yes |
-| Compliance mapping | — | — | Yes |
-| Admin workflows | — | — | Yes |
-
-**When to upgrade:**
-- Need multi-repo batch scanning or HTML/CSV reports? → Business
-- Need org-wide governance, audit trails, or compliance? → Enterprise
-
-See `docs/edition-comparison.md` for the full comparison.
-
-## Non-Goals
-
-- Modifying workflow files automatically
-- Executing or monitoring CI/CD pipelines
-- Managing GitHub repository settings
-- Replacing GitHub's built-in security features
-- Providing a hosted/cloud dashboard service
-
-## Standalone Installation
-
-Community is independently installable. No other edition needs to be
-installed. The released binary is self-contained.
-
-### Install from Release Binary (Recommended)
-
-Download the pre-built binary for your platform from the
-[Releases](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator/releases)
-page.
+## Quick Start
 
 ```bash
-# Linux x86_64
-tar xzf haskell-orchestrator-X.Y.Z-linux-x86_64.tar.gz
-cd haskell-orchestrator-X.Y.Z-linux-x86_64
+# 1. Install (Linux x86_64)
+tar xzf haskell-orchestrator-4.0.0-linux-x86_64.tar.gz
 sudo cp orchestrator /usr/local/bin/
 
-# Verify
+# 2. Verify the install
 orchestrator demo
+
+# 3. Scan your repository
+orchestrator scan /path/to/your/repo
+
+# 4. Scan only security rules
+orchestrator scan /path/to/your/repo --tags security
+
+# 5. Fail CI on any error finding
+orchestrator scan /path/to/your/repo --fail-on error
 ```
 
-Each release includes SHA-256 checksums and a CycloneDX SBOM.
-See "Release Integrity / Verification" below.
+**Example output:**
 
-### Install from Source
+```
+[ERROR]   [PERM-002] Workflow uses 'write-all' permissions.
+          Fix: Use fine-grained permissions instead of 'write-all'.
+
+[WARNING] [SEC-001] Step uses unpinned action: actions/checkout@v4
+          Supply-chain risk: tag references can be mutated.
+          Fix: Pin to a full commit SHA.
+
+[WARNING] [SUPPLY-001] Workflow does not pin all third-party actions to a SHA.
+          Fix: Run 'orchestrator fix --tags supply-chain' for a remediation plan.
+
+Summary: 3 findings (1 error, 2 warnings)
+Exit code: 1  (--fail-on error threshold reached)
+```
+
+---
+
+## Installation
+
+### Binary (Recommended)
+
+Download the pre-built binary from the
+[Releases](https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator/releases) page.
+
+```bash
+# Linux x86_64 — tarball
+tar xzf haskell-orchestrator-4.0.0-linux-x86_64.tar.gz
+sudo cp orchestrator /usr/local/bin/
+
+# Linux x86_64 — Debian/Ubuntu
+sudo dpkg -i haskell-orchestrator-4.0.0-amd64.deb
+
+# Linux x86_64 — Fedora/RHEL
+sudo rpm -i haskell-orchestrator-4.0.0-x86_64.rpm
+
+# Verify checksum
+sha256sum -c SHA256SUMS-4.0.0.txt
+
+# Inspect the SBOM
+python3 -m json.tool sbom-4.0.0.json
+```
+
+Each release ships a tarball, `.deb`, `.rpm`, SHA-256 checksums, and a
+CycloneDX SBOM.
+
+### From Source
 
 ```bash
 # Prerequisites: GHC 9.6.x, Cabal 3.10+
@@ -116,174 +113,196 @@ cabal build
 cabal install exe:orchestrator
 ```
 
-### Verify Installation
+---
+
+## CI Integration
+
+### Gate on Severity with `--fail-on`
+
+Use `--fail-on` to control when orchestrator exits non-zero. This is the
+primary mechanism for blocking PRs on policy violations.
+
+```yaml
+# .github/workflows/workflow-lint.yml
+name: Workflow Governance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  orchestrator-scan:
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - uses: actions/checkout@3f35a3...  # pin to SHA in production
+
+      - name: Scan workflows — fail on errors
+        run: orchestrator scan .github/workflows/ --fail-on error
+
+      - name: Scan workflows — fail on warnings (strict mode)
+        run: orchestrator scan .github/workflows/ --fail-on warning
+```
+
+`--fail-on` accepts: `warning`, `error`, `critical`
+
+| Value | Exits non-zero when... |
+|-------|----------------------|
+| `warning` | any warning, error, or critical finding exists |
+| `error` | any error or critical finding exists |
+| `critical` | any critical finding exists |
+
+### Selective Scanning with `--tags`
+
+Run only the rules relevant to a given concern:
 
 ```bash
-# Quick check
-orchestrator demo
+# Security rules only
+orchestrator scan . --tags security
 
-# Full standalone verification
-bash scripts/verify-standalone-install.sh
+# Multiple tag groups
+orchestrator scan . --tags security,supply-chain
+
+# Performance and cost rules
+orchestrator scan . --tags performance,cost
 ```
 
-## What Ships with This Edition
+### CI Self-Check (Dogfooding)
 
-The Community binary includes:
+This repository scans its own workflows on every push:
 
-- GitHub Actions YAML parsing into typed domain model
-- Single-repository workflow scanning
-- 21 built-in policy rules: 10 standard (permissions, security, runners, naming, triggers, concurrency) + 11 extended (graph cycle/orphan detection, duplicate job IDs, reusable workflow validation, matrix explosion/fail-fast, environment gate/URL checks, composite action shell/description)
-- Structural validation (empty jobs, dangling needs, duplicate IDs)
-- Diff view and remediation plan generation
-- Demo mode with synthetic fixtures (no external access)
-- Doctor (environment diagnostics)
-- Configuration init and verify
-- JSON and text output formats
-- Resource-bounded parallelism
-
-### What This Does / Does Not Depend On
-
-- **No runtime dependency on any other edition.** The binary is self-contained.
-- No Business or Enterprise installation is required.
-- No shared runtime files or config directories with other editions.
-
-## Quick Start
-
-### Try the Demo
-
-```bash
-orchestrator demo
+```yaml
+- name: Run Orchestrator against own workflows
+  run: cabal run orchestrator -- scan .github/workflows/ --fail-on error
 ```
 
-This runs a complete scan/validate/plan cycle against synthetic workflow
-fixtures.  No external repositories are accessed.
+This is the same command you would use in your own CI pipeline.
 
-<details>
-<summary><strong>See demo output</strong> — what <code>orchestrator demo</code> actually produces</summary>
+---
 
-The demo scans 3 synthetic workflows (a clean CI workflow, a problematic deploy,
-and an insecure release) to show the full range of findings and remediation plans:
+## Rules Reference
 
-```
-Haskell Orchestrator — Demo Mode
-════════════════════════════════════════════════════════════
+v4.0.0 ships **36 rules** across six categories. All rules are tagged and
+can be selectively enabled with `--tags`.
 
-Using synthetic workflow fixtures (no external repos accessed).
+Run `orchestrator rules` to list all rules. Run `orchestrator explain RULE_ID`
+for detailed guidance on any rule.
 
-Analyzing: CI
-  File: demo/.github/workflows/ci.yml
+### Security
 
-  Structural validation:
-    No structural issues.
+| ID | Name | Severity | Tags |
+|----|------|----------|------|
+| PERM-001 | Permissions Required | Warning | security |
+| PERM-002 | Broad Permissions | Error | security |
+| SEC-001 | Unpinned Third-Party Actions | Warning | security, supply-chain |
+| SEC-002 | Secret in Run Step | Error | security |
+| SEC-003 | Workflow Injection via Expression | Error | security, hardening |
+| SEC-004 | Dangerous Permissions Combination | Error | security, hardening |
+| SEC-005 | Missing CODEOWNERS for Workflow Dir | Warning | security |
+| HARD-001 | Missing `shell` in Run Step | Warning | security, hardening |
+| HARD-002 | `continue-on-error: true` in Critical Job | Warning | security, hardening |
+| HARD-003 | Privileged Container Without Justification | Error | security, hardening |
 
-  Policy findings:
-[INFO]     [NAME-001] Workflow has a very short or missing name.
-  File: demo/.github/workflows/ci.yml
-  Fix: Use a descriptive workflow name (e.g., 'CI', 'Release').
+### Supply Chain
 
-Summary
-────────────────────────────────────────
-Total findings: 1
-  Errors:   0
-  Warnings: 0
-  Info:     1
+| ID | Name | Severity | Tags |
+|----|------|----------|------|
+| SUPPLY-001 | Actions Not Pinned to SHA | Warning | supply-chain, security |
+| SUPPLY-002 | First-Party Action Without Version Pin | Info | supply-chain |
 
-By category:
-  Naming: 1
+### Performance
 
-────────────────────────────────────────────────────────────
+| ID | Name | Severity | Tags |
+|----|------|----------|------|
+| PERF-001 | Missing Cache for Package Manager | Warning | performance |
+| PERF-002 | Sequential Jobs That Could Parallelize | Info | performance |
 
-Analyzing: Deploy
-  File: demo/.github/workflows/deploy.yml
+### Cost
 
-  Policy findings:
-[WARNING]  [PERM-001] Workflow does not declare a top-level permissions block.
-  Fix: Add a 'permissions:' block to restrict token scope.
+| ID | Name | Severity | Tags |
+|----|------|----------|------|
+| COST-001 | Matrix Explosion (Too Many Combinations) | Warning | cost, matrix |
+| COST-002 | Redundant Artifact Upload/Download | Info | cost |
 
-[WARNING]  [SEC-001] Step uses unpinned action: third-party/deploy-action@v2.
-           Supply-chain risk: tag references can be mutated.
-  Fix: Pin to a full commit SHA instead of a tag.
+### Structure
 
-[WARNING]  [RES-001] Job 'deployProd' has no timeout-minutes.
-  Fix: Add 'timeout-minutes:' to bound execution time.
+| ID | Name | Severity | Tags |
+|----|------|----------|------|
+| RUN-001 | Self-Hosted Runner Detection | Info | structure, runners |
+| CONC-001 | Missing Concurrency Config | Info | structure |
+| RES-001 | Missing Timeout | Warning | structure |
+| NAME-001 | Workflow Naming | Info | structure, naming |
+| NAME-002 | Job Naming Convention | Info | structure, naming |
+| TRIG-001 | Wildcard Triggers | Info | structure, triggers |
+| GRAPH-001 | Workflow Cycle | Error | structure |
+| GRAPH-002 | Orphan Job | Warning | structure |
+| DUP-001 | Duplicate Job ID | Error | structure |
+| REUSE-001 | Reusable Input Validation | Warning | structure |
+| REUSE-002 | Unused Reusable Output | Info | structure |
+| MAT-001 | Matrix Explosion | Warning | structure, matrix |
+| MAT-002 | Matrix Fail-Fast Disabled | Info | structure, matrix |
+| ENV-001 | Missing Environment URL | Info | structure |
+| ENV-002 | Unprotected Approval Gate | Warning | structure |
+| COMP-001 | Composite Action Description | Info | structure |
+| COMP-002 | Composite Shell Declaration | Warning | structure |
+| STRUCT-001 | Circular Workflow Calls | Error | structure |
+| STRUCT-002 | Unreferenced Reusable Workflows | Warning | structure |
 
-[INFO]     [CONC-001] Workflow has pull_request trigger but no concurrency config.
-[INFO]     [NAME-002] Job ID 'deployProd' does not follow kebab-case.
-[INFO]     [TRIG-001] Trigger 'push' uses wildcard branch pattern.
+### Drift
 
-Summary: 6 findings (3 warnings, 3 info)
+| ID | Name | Severity | Tags |
+|----|------|----------|------|
+| DRIFT-001 | Action Version Inconsistency Across Workflows | Warning | drift |
 
-Remediation Plan (3 steps)
-────────────────────────────────────────────────────────────
-Step 1: PERM-001 — Add a 'permissions:' block to restrict token scope.
-Step 2: SEC-001  — Pin to a full commit SHA instead of a tag.
-Step 3: RES-001  — Add 'timeout-minutes:' to bound execution time.
+---
 
-────────────────────────────────────────────────────────────
+## Inline Suppression
 
-Analyzing: Release
-  File: demo/.github/workflows/release.yml
+Suppress a specific rule for a single step or job by adding a comment to your
+workflow YAML:
 
-  Policy findings:
-[ERROR]    [PERM-002] Workflow uses 'write-all' permissions, granting broad access.
-  Fix: Use fine-grained permissions instead of 'write-all'.
-
-[ERROR]    [PERM-002] Job 'release' uses 'write-all' permissions.
-  Fix: Use fine-grained permissions instead of 'write-all'.
-
-[ERROR]    [SEC-002] Run step references secrets directly. Secrets in shell
-           commands risk exposure in build logs.
-  Fix: Pass secrets via environment variables instead.
-
-[WARNING]  [RES-001] Job 'release' has no timeout-minutes.
-  Fix: Add 'timeout-minutes:' to bound execution time.
-
-Summary: 4 findings (3 errors, 1 warning)
-
-Remediation Plan (4 steps)
-────────────────────────────────────────────────────────────
-Step 1: PERM-002 — Use fine-grained permissions instead of 'write-all'.
-Step 2: PERM-002 — Use fine-grained permissions instead of 'write-all'.
-Step 3: RES-001  — Add 'timeout-minutes:' to bound execution time.
-Step 4: SEC-002  — Pass secrets via environment variables instead.
-
-════════════════════════════════════════════════════════════
-Demo complete.
+```yaml
+steps:
+  - name: Deploy
+    uses: third-party/action@v2  # orchestrator:disable SEC-001
+    with:
+      token: ${{ secrets.DEPLOY_TOKEN }}
 ```
 
-</details>
+Suppression is scoped to the annotated line. It does not affect other
+occurrences of the same rule. The suppression comment is visible in code
+review, making it an auditable override rather than a hidden exception.
 
-### Scan a Local Repository
+Disable a rule project-wide in `.orchestrator.yml` instead:
 
-```bash
-orchestrator scan /path/to/your/repo
+```yaml
+policy:
+  disabled: [NAME-001, NAME-002]
 ```
 
-### Initialize Configuration
+---
 
-```bash
-orchestrator init
-# Creates .orchestrator.yml with documented defaults
-```
+## CLI Reference
 
-## Command Reference
+### Commands
 
 | Command | Description |
 |---------|-------------|
-| `scan PATH` | Scan workflows and evaluate policies |
-| `validate PATH` | Validate workflow structure |
-| `diff PATH` | Show current issues |
-| `plan PATH` | Generate a remediation plan |
-| `fix PATH` | Auto-fix safe, mechanical issues (`--write` to apply) |
-| `baseline PATH` | Save current findings as baseline for drift detection |
-| `demo` | Run demo with synthetic fixtures (no external access) |
-| `doctor` | Diagnose environment, config, and connectivity |
-| `init` | Create a new .orchestrator.yml config file |
-| `rules` | List all available policy rules |
-| `explain RULE_ID` | Explain a policy rule in detail |
-| `verify` | Verify current configuration |
+| `scan PATH` | Scan workflows and evaluate all configured rules |
+| `validate PATH` | Validate workflow structure only (no policy rules) |
+| `diff PATH` | Show current issues relative to baseline |
+| `plan PATH` | Generate a prioritized remediation plan |
+| `fix PATH` | Produce fix instructions for mechanical issues |
+| `baseline PATH` | Save current findings as a baseline for drift detection |
+| `demo` | Run a full scan/validate/plan cycle on synthetic fixtures |
+| `doctor` | Diagnose environment, configuration, and connectivity |
+| `init` | Create a `.orchestrator.yml` with documented defaults |
+| `rules` | List all 36 rules with IDs, severity, and tags |
+| `explain RULE_ID` | Show full guidance for a specific rule |
+| `verify` | Verify the current configuration is valid |
 | `upgrade-path PATH` | Show what Business/Enterprise editions would add |
-| `ui PATH [--port N]` | Launch embedded web dashboard (default port 8420) |
+| `ui PATH [--port N]` | Launch the embedded web dashboard (default port 8420) |
 
 ### Global Flags
 
@@ -291,289 +310,185 @@ orchestrator init
 |------|-------------|
 | `-c, --config FILE` | Configuration file (default: `.orchestrator.yml`) |
 | `-v, --verbose` | Enable verbose output |
-| `--json` | Output results as JSON |
-| `--sarif` | Output results as SARIF |
-| `--markdown` | Output results as Markdown |
+| `--json` | Output as JSON |
+| `--sarif` | Output as SARIF |
+| `--markdown` | Output as Markdown |
 | `--baseline FILE` | Compare against a saved baseline |
 | `-j, --jobs N` | Number of parallel workers |
+| `--fail-on warning\|error\|critical` | Exit non-zero when findings meet or exceed this severity |
+| `--tags TAG[,TAG...]` | Run only rules matching these tags |
 
-## Configuration Reference
+---
 
-Configuration file: `.orchestrator.yml`
+## Configuration
+
+Configuration file: `.orchestrator.yml` (created by `orchestrator init`)
 
 ```yaml
 scan:
-  targets: []           # Explicit scan targets
-  exclude: []           # Paths to exclude
-  max_depth: 10         # Maximum directory depth
+  targets: []             # Explicit scan targets (required for scan command)
+  exclude: []             # Paths to exclude from scanning
+  max_depth: 10           # Maximum directory recursion depth
   follow_symlinks: false
 
 policy:
-  pack: standard        # Policy pack name
-  min_severity: info    # Minimum severity to report
-  disabled: []          # Rule IDs to disable
+  pack: extended          # Policy pack: standard (10 rules) or extended (36 rules)
+  min_severity: info      # Minimum severity to report: info, warning, error, critical
+  disabled: []            # Rule IDs to disable globally (e.g. [NAME-001, NAME-002])
+  tags: []                # Limit to rules with these tags (empty = all rules)
 
 output:
-  format: text          # text or json
+  format: text            # text, json, sarif, or markdown
   verbose: false
   color: true
 
 resources:
-  jobs: 4               # Parallel workers (default: conservative)
-  profile: safe         # safe, balanced, or fast
+  jobs: 4                 # Parallel workers
+  profile: safe           # safe, balanced, or fast
+
+gate:
+  fail_on: error          # Exit non-zero threshold: warning, error, or critical
 ```
 
-## Policy Rules
+---
 
-### Standard Pack (10 rules)
+## Edition Comparison
 
-| ID | Name | Severity | Category | Description |
-|----|------|----------|----------|-------------|
-| PERM-001 | Permissions Required | Warning | Permissions | Workflows should declare explicit permissions |
-| PERM-002 | Broad Permissions | Error | Permissions | Detect write-all permission grants |
-| RUN-001 | Self-Hosted Runner | Info | Runners | Flag non-standard runners |
-| CONC-001 | Missing Concurrency | Info | Concurrency | PR workflows should cancel duplicates |
-| SEC-001 | Unpinned Actions | Warning | Security | Third-party actions need SHA pins |
-| SEC-002 | Secret in Run Step | Error | Security | Secrets should use env vars |
-| RES-001 | Missing Timeout | Warning | Structure | Jobs need timeout-minutes |
-| NAME-001 | Workflow Naming | Info | Naming | Names should be descriptive |
-| NAME-002 | Job Naming | Info | Naming | Job IDs should be kebab-case |
-| TRIG-001 | Wildcard Triggers | Info | Triggers | Avoid wildcard branch patterns |
+Community is free and open source (MIT). Business and Enterprise are
+proprietary products for teams with broader needs.
 
-### Extended Pack (11 additional rules)
+| Feature | Community | Business | Enterprise |
+|---------|:---------:|:--------:|:----------:|
+| Single-repo scanning | Yes | Yes | Yes |
+| 36 policy rules | Yes | Yes | Yes |
+| Rule tagging and `--tags` filtering | Yes | Yes | Yes |
+| `--fail-on` CI gating | Yes | Yes | Yes |
+| Inline suppression | Yes | Yes | Yes |
+| JSON / SARIF / Markdown output | Yes | Yes | Yes |
+| Demo mode | Yes | Yes | Yes |
+| .deb and .rpm packages | Yes | Yes | Yes |
+| Multi-repo batch scanning | — | Yes | Yes |
+| HTML / CSV reports | — | Yes | Yes |
+| Team policy rules | — | Yes | Yes |
+| Prioritized remediation with effort estimates | — | Yes | Yes |
+| Org-wide governance policies | — | — | Yes |
+| Typed enforcement (Advisory/Mandatory/Blocking) | — | — | Yes |
+| Immutable audit trail | — | — | Yes |
+| SOC 2 / HIPAA compliance mapping | — | — | Yes |
+| Compliance artifact generation | — | — | Yes |
 
-| ID | Name | Severity | Category | Description |
-|----|------|----------|----------|-------------|
-| GRAPH-001 | Workflow Cycle | Error | Graph | Detect cyclic job dependencies |
-| GRAPH-002 | Orphan Job | Warning | Graph | Jobs with no path to a terminal node |
-| DUP-001 | Duplicate Job ID | Error | Structural | Job IDs must be unique within a workflow |
-| REUSE-001 | Reusable Input Validation | Warning | Reuse | Reusable workflows should validate required inputs |
-| REUSE-002 | Unused Reusable Output | Info | Reuse | Declared outputs should be consumed |
-| MAT-001 | Matrix Explosion | Warning | Matrix | Matrix combinations above safe threshold |
-| MAT-002 | Matrix Fail-Fast Disabled | Info | Matrix | Explicit fail-fast: false should be intentional |
-| ENV-001 | Missing Environment URL | Info | Environments | Deployment environments should declare a URL |
-| ENV-002 | Unprotected Approval Gate | Warning | Environments | Production environments should require a review |
-| COMP-001 | Composite Action Description | Info | Composite | Composite action steps should have descriptions |
-| COMP-002 | Composite Shell Declaration | Warning | Composite | Run steps in composite actions should declare shell |
+**When to upgrade:**
 
-Use `orchestrator rules` to list all rules and `orchestrator explain RULE_ID` for detail.
+- Multi-repo batch scanning or HTML/CSV reports? Use Business.
+- Org-wide governance, audit trails, or compliance frameworks? Use Enterprise.
 
-## Scan Safety Model
+See [`docs/edition-comparison.md`](docs/edition-comparison.md) for the full
+comparison and decision tree.
 
-Haskell Orchestrator is designed to be safe and predictable:
+### Coexistence
 
-1. **Explicit targets only.** You must specify what to scan. There is no
-   "scan everything" mode. No automatic filesystem discovery.
+All three editions install independently. They use distinct binary names and
+do not share runtime state:
 
-2. **Read-only by default.** Scan, validate, and plan operations never
-   modify files. The tool produces reports and plans, not changes.
+| Edition | Binary | License |
+|---------|--------|---------|
+| Community | `orchestrator` | MIT (free) |
+| Business | `orchestrator-business` | Private |
+| Enterprise | `orchestrator-enterprise` | Private |
 
-3. **No home-directory crawling.** The tool never traverses your home
-   directory or any path you didn't explicitly provide.
+---
 
-4. **No hidden file access.** The tool does not read dotfiles, credentials,
-   or configuration from outside the scan target.
+## Safety Model
 
-5. **No network access during local scans.** Local path scans are pure
-   filesystem reads with no network I/O.
+Haskell Orchestrator is read-only and self-contained by design:
 
-## Isolation Guarantees
+- **Explicit targets only.** You must specify what to scan. There is no
+  automatic filesystem discovery or home-directory crawling.
+- **No file modification.** Scan, validate, and plan operations never write
+  to disk. Reports and plans are output only.
+- **No network access during local scans.** Local path scans are pure
+  filesystem reads with no network I/O.
+- **No telemetry.** The binary does not phone home. No background processes.
+- **Deterministic output.** The same input and configuration always produce
+  the same findings.
+- **Bounded parallelism.** Default worker count is conservative. `--jobs`
+  gives explicit control.
 
-- This project is completely isolated from all other repositories.
-- No external repository was scanned, referenced, or used during development.
-- All test fixtures and demo data are synthetic and self-contained.
-- The tool defaults to isolation: no auto-discovery, no crawling, no hidden coupling.
+See [`docs/safety-model.md`](docs/safety-model.md) for full safety assertions
+and evidence.
 
-## Operational Guarantees and Non-Guarantees
-
-### Guarantees
-
-- Deterministic output for the same input and configuration
-- Bounded resource usage with configurable limits
-- No filesystem modification during analysis
-- No network access during local scans
-- No telemetry or phone-home behavior
-- No background processes or daemons
-
-### Non-Guarantees
-
-- The tool does not guarantee that scanned workflows are secure
-- Findings are advisory, not a substitute for security review
-- False positives are possible
-- The tool does not detect all possible workflow issues
-- Build reproducibility is near-reproducible, not bit-for-bit identical
-
-## Safety Assertions
-
-| Assertion | Evidence |
-|-----------|----------|
-| No filesystem modification | Source code analysis; no write operations in scan/validate/plan paths |
-| No auto-discovery | Source code analysis; all scan targets require explicit operator input |
-| No telemetry | Source code analysis; no network calls outside explicit GitHub API usage |
-| Bounded parallelism | Default worker count is conservative; `--jobs` provides explicit control |
-| No obfuscation | Standard GHC compilation; binaries are standard ELF |
-
-## Release Integrity / Verification
-
-Each release includes:
-- **SHA-256 checksums** — Verify with `sha256sum -c SHA256SUMS-*.txt`
-- **SBOM** — CycloneDX JSON listing all dependencies
-
-```bash
-# Verify checksum
-sha256sum -c SHA256SUMS-3.0.4.txt
-
-# Inspect SBOM
-python3 -m json.tool sbom-3.0.4.json
-```
-
-## Performance / Resource Model
-
-- Default parallelism: 1 worker (safe profile)
-- Balanced profile: CPU count / 2
-- Fast profile: CPU count
-- Memory: proportional to concurrent workflow count (each is small)
-- No background indexing or caching
-
-Override with:
-```bash
-orchestrator scan --jobs 4 /path/to/repo
-```
-
-Or in configuration:
-```yaml
-resources:
-  jobs: 4
-  profile: balanced
-```
-
-## Compatibility
-
-- GHC 9.6.x
-- Cabal 3.10+
-- Linux x86_64 (primary)
-- Windows x86_64 (binary provided)
-- macOS: untested
-
-## Troubleshooting
-
-### Build fails with missing dependencies
-
-```bash
-cabal update
-cabal build all
-```
-
-### "No workflows found"
-
-Ensure the target path contains `.github/workflows/` with `.yml` or `.yaml` files.
-
-### Too many findings
-
-Adjust minimum severity:
-```yaml
-policy:
-  min_severity: warning
-```
-
-Or disable specific rules:
-```yaml
-policy:
-  disabled: [NAME-001, NAME-002]
-```
-
-## FAQ
-
-**Q: Does this tool modify my workflow files?**
-A: No. By default, all operations are read-only. The tool produces reports and plans.
-
-**Q: Do I need to know Haskell to use this?**
-A: No. The compiled binary is a standalone CLI tool.
-
-**Q: Can this scan private GitHub repositories?**
-A: Yes, with a GitHub token that has appropriate access.
-
-**Q: Is this tool safe to run in CI?**
-A: Yes. It is read-only and has no side effects.
-
-## Coexistence with Other Editions
-
-Community, Business, and Enterprise can all be installed on the same machine.
-They use distinct binary names and do not share runtime state:
-
-| Edition | Binary | Default Config |
-|---|---|---|
-| Community | `orchestrator` | `.orchestrator.yml` |
-| Business | `orchestrator-business` | `.orchestrator.yml` |
-| Enterprise | `orchestrator-enterprise` | `.orchestrator.yml` |
-
-Each binary reads `.orchestrator.yml` independently. They do not interfere
-with each other.
-
-## Code Quality
-
-All source code compiles **warning-free** under GHC's strictest practical
-warning set. The `common warnings` stanza in `orchestrator.cabal` enables:
-
-```
--Wall -Wcompat -Widentities -Wincomplete-record-updates
--Wincomplete-uni-patterns -Wmissing-export-lists
--Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
-```
-
-These flags are shared across the library, executable, and test suite via
-`import: warnings`. All file I/O operations are wrapped with
-`Control.Exception.try` to handle errors gracefully rather than crashing.
+---
 
 ## Development
 
 ```bash
-# Build (all warnings are errors in CI)
+# Build
 cabal build all
 
-# Test
+# Run all 223 tests
 cabal test all --test-show-details=direct
 
-# Verify zero warnings (CI gate)
+# Zero-warning gate (matches CI)
 cabal clean && cabal build all --ghc-options="-Werror"
 
 # Run demo
 cabal run orchestrator -- demo
 
-# Format
+# Format all source
 ormolu --mode inplace $(find src app test -name '*.hs')
+
+# Lint
+hlint src/ app/
 ```
+
+**Test coverage:** 223 tests across unit, property (QuickCheck), integration,
+golden, and edge-case suites.
+
+**Code quality:** All source compiles warning-free under GHC's strictest
+practical warning set (`-Wall -Wcompat` and ten additional flags). All file
+I/O is wrapped with `Control.Exception.try`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full development guidelines.
 
-## Testing Strategy
+---
 
-- **Unit tests** — Model, parser, policy, validation, diff, config, rendering
-- **Demo fixture tests** — Synthetic workflows produce expected findings
-- **Golden tests** — Output stability for key scenarios
-- **Property tests** — QuickCheck-driven invariant checking
-- **CI** — All tests run on every push and PR (115 tests)
+## Documentation
 
-## Release Flow
+| Document | Description |
+|----------|-------------|
+| [`docs/quickstart.md`](docs/quickstart.md) | Step-by-step getting started guide |
+| [`docs/operator-guide.md`](docs/operator-guide.md) | Full operator reference |
+| [`docs/edition-comparison.md`](docs/edition-comparison.md) | Edition feature matrix and decision tree |
+| [`docs/safety-model.md`](docs/safety-model.md) | Safety assertions and evidence |
+| [`docs/faq.md`](docs/faq.md) | Frequently asked questions |
+| [`docs/output-examples.md`](docs/output-examples.md) | Example output for all formats |
+| [`docs/remediation-philosophy.md`](docs/remediation-philosophy.md) | How remediation plans are generated |
 
-1. Tag a version: `git tag vX.Y.Z`
-2. Push the tag: `git push origin vX.Y.Z`
-3. GitHub Actions builds, tests, and creates a release with artifacts
+---
 
-## Sponsor This Project
+## Release Integrity
 
-[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github)](https://github.com/sponsors/jalsarraf0)
+Each release includes:
 
-Haskell Orchestrator is free and open source. If it saves your team time or
-improves your CI/CD hygiene, please consider sponsoring its development.
+- **SHA-256 checksums** — `SHA256SUMS-4.0.0.txt`
+- **CycloneDX SBOM** — `sbom-4.0.0.json`
+- **Linux tarball, .deb, and .rpm**
 
-Sponsorship directly funds:
-- Ongoing maintenance and bug fixes
-- New policy rules and detection capabilities
-- Documentation improvements
-- Community support
+```bash
+sha256sum -c SHA256SUMS-4.0.0.txt
+python3 -m json.tool sbom-4.0.0.json
+```
+
+---
+
+## Sponsor
+
+Haskell Orchestrator is free and open source. If it saves your team time,
+please consider sponsoring its development.
 
 **[Become a sponsor on GitHub](https://github.com/sponsors/jalsarraf0)**
+
+---
 
 ## License
 
