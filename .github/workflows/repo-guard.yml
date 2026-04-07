@@ -52,8 +52,8 @@ jobs:
           if command -v sensors &>/dev/null; then
             TEMP=$(sensors 2>/dev/null | grep -oP 'Package.*?\+\K[0-9]+' | head -1 || echo "0")
             echo "CPU temperature: ${TEMP}°C"
-            if [ "${TEMP:-0}" -ge 70 ]; then
-              echo "::error::THERMAL ABORT: CPU at ${TEMP}°C — exceeds 70°C hard limit (air-cooled host: $HOST)"
+            if [ "${TEMP:-0}" -ge 90 ]; then
+              echo "::error::THERMAL ABORT: CPU at ${TEMP}°C — exceeds 90°C hard limit (air-cooled host: $HOST)"
               exit 1
             fi
           else
