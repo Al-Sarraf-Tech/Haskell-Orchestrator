@@ -1,0 +1,11 @@
+Package: haskell-orchestrator
+Version: VERSION_PLACEHOLDER
+Architecture: amd64
+Maintainer: Al-Sarraf-Tech <tech@alsarraf.dev>
+Description: Typed analysis engine for GitHub Actions workflows
+ Haskell Orchestrator parses workflow YAML into a typed domain model,
+ validates structure, evaluates 36 configurable policy rules, and
+ generates deterministic remediation plans.
+Section: devel
+Priority: optional
+Homepage: https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator

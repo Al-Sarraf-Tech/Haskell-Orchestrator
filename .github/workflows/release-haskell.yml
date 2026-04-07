@@ -129,12 +129,28 @@ jobs:
           "version=${version}" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "asset_name=${assetName}" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
+      - name: Build .deb package
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          bash packaging/deb/build-deb.sh "_bin/orchestrator" "$VERSION"
+          cp *.deb staging/
+
+      - name: Build .rpm package
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          bash packaging/rpm/build-rpm.sh "_bin/orchestrator" "$VERSION" || echo "::warning::RPM build skipped (rpmbuild not available)"
+          cp *.rpm staging/ 2>/dev/null || true
+
       - name: Generate checksums (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           cd staging
-          sha256sum *.tar.gz *.zip 2>/dev/null > SHA256SUMS.txt || true
+          sha256sum *.tar.gz *.zip *.deb *.rpm 2>/dev/null > SHA256SUMS.txt || true
           cat SHA256SUMS.txt
 
       - name: Generate checksums (Windows)
@@ -156,6 +172,8 @@ jobs:
           path: |
             staging/*.tar.gz
             staging/*.zip
+            staging/*.deb
+            staging/*.rpm
             staging/SHA256SUMS.txt
           retention-days: 5
 
@@ -184,7 +202,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p release
-          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec cp {} release/ \;
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.deb' -o -name '*.rpm' \) -exec cp {} release/ \;
           cd release
           sha256sum * > "SHA256SUMS-${VERSION}.txt"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
@@ -240,6 +258,8 @@ jobs:
             | Platform | Architecture | File |
             |----------|-------------|------|
             | Linux | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-linux-x86_64.tar.gz` |
+            | Linux (.deb) | amd64 | `haskell-orchestrator_${{ steps.prep.outputs.version }}_amd64.deb` |
+            | Linux (.rpm) | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-1.x86_64.rpm` (if available) |
             | Windows | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-windows-x86_64.zip` |
 
             ### Verification

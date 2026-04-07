@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-04-07
+
+### Added
+- 15 new policy rules (36 total): SEC-003 (workflow run privilege escalation), SEC-004 (artifact poisoning), SEC-005 (OIDC token scope), SUPPLY-001 (abandoned action), SUPPLY-002 (typosquat risk), PERF-001 (missing cache), PERF-002 (sequential parallelizable jobs), COST-001 (matrix waste), COST-002 (redundant artifact upload), HARD-001 (missing persist-credentials: false), HARD-002 (default shell unset), HARD-003 (pull request target risk), DRIFT-001 (intra-repo inconsistency), STRUCT-001 (unreferenced reusable workflow), STRUCT-002 (circular workflow call)
+- Rule tagging system — all 36 rules tagged by concern (security, performance, cost, style, structure)
+- `--tags` flag for selective scanning by tag
+- `--fail-on` flag for CI exit code gating (info|warning|error|critical)
+- Inline suppression via `# orchestrator:disable RULE-ID` comments in workflow YAML
+- Three new FindingCategory values: Performance, Cost, SupplyChain
+- Orchestrator self-check CI job (dogfooding)
+- .deb and .rpm packaging for Linux releases
+
+### Changed
+- Build parallelism capped at 6 cores (was $ncpus) to prevent thermal throttling
+- Runtime threading capped at -N6 (was -N, using all cores)
+- Test count: 115 → 223
+
 ## [3.0.4] - 2026-03-24
 
 ### Removed

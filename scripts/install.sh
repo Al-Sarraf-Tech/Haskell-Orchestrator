@@ -5,7 +5,7 @@ set -euo pipefail
 # Builds from source, installs binary, and garbage-collects old artifacts.
 
 PRODUCT="orchestrator"
-VERSION="3.0.3"
+VERSION="4.0.0"
 DEFAULT_INSTALLDIR="$HOME/.local/bin"
 CABAL_STORE="${CABAL_DIR:-$HOME/.cabal}/store"
 
