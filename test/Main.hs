@@ -15,6 +15,12 @@ import Test.Integration qualified
 import Test.Tags qualified
 import Test.Suppress qualified
 import Test.Gate qualified
+import Test.Cost qualified
+import Test.DriftRule qualified
+import Test.Hardening qualified
+import Test.Performance qualified
+import Test.StructureRule qualified
+import Test.SupplyChain qualified
 
 main :: IO ()
 main = defaultMain $ testGroup "Orchestrator"
@@ -32,4 +38,10 @@ main = defaultMain $ testGroup "Orchestrator"
   , Test.Tags.tests
   , Test.Suppress.tests
   , Test.Gate.tests
+  , Test.Cost.tests
+  , Test.DriftRule.tests
+  , Test.Hardening.tests
+  , Test.Performance.tests
+  , Test.StructureRule.tests
+  , Test.SupplyChain.tests
   ]
