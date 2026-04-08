@@ -20,7 +20,7 @@ permissions:
 jobs:
   orchestrator-scan:
     name: Orchestrator Workflow Scan
-    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
+    runs-on: [self-hosted, haskell-slim]
     timeout-minutes: 5
     env:
       SCAN_FAIL_ON: ${{ inputs.fail-on }}

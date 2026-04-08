@@ -19,7 +19,7 @@ jobs:
 
   standalone-binary:
     name: Standalone Binary Verification
-    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
+    runs-on: [self-hosted, haskell-slim]
     needs: repo-guard
     timeout-minutes: 30
     steps:
@@ -55,7 +55,7 @@ jobs:
 
   packaging-check:
     name: Packaging Independence Check
-    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
+    runs-on: [self-hosted, haskell-slim]
     needs: repo-guard
     timeout-minutes: 5
     steps:

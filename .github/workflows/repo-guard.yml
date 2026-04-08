@@ -18,7 +18,7 @@ permissions: {}
 jobs:
   repo-guard:
     name: Repository Context Guard
-    runs-on: [self-hosted, Linux, X64, haskell, unified-all]
+    runs-on: [self-hosted, haskell-slim]
     timeout-minutes: 2
     outputs:
       status: ${{ steps.result.outputs.status }}
