@@ -21,9 +21,8 @@ jobs:
   orchestrator-scan:
     name: Orchestrator Workflow Scan
     runs-on: [self-hosted, Linux, X64, haskell, unified-all]
-    timeout-minutes: 10
+    timeout-minutes: 5
     env:
-      CABAL_DIR: ${{ github.workspace }}/.cabal
       SCAN_FAIL_ON: ${{ inputs.fail-on }}
       SCAN_TAGS: ${{ inputs.tags }}
 
@@ -33,36 +32,16 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Checkout Orchestrator
-        uses: actions/checkout@v4
-        with:
-          repository: Al-Sarraf-Tech/Haskell-Orchestrator
-          ref: v4.0.0
-          path: .orchestrator-tool
-          persist-credentials: false
-
-      - name: Restore cabal cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ github.workspace }}/.cabal/store
-            .orchestrator-tool/dist-newstyle
-          key: orchestrator-scan-${{ runner.os }}-v4.0.0
-          restore-keys: |
-            orchestrator-scan-${{ runner.os }}-
-
-      - name: Update package index
-        run: cabal update
-        working-directory: .orchestrator-tool
-
-      - name: Build Orchestrator
-        run: cabal build exe:orchestrator -O2
-        working-directory: .orchestrator-tool
-
-      - name: Run scan
+      - name: Run Orchestrator Enterprise scan
         shell: bash
         run: |
-          ARGS="scan ${GITHUB_WORKSPACE}/.github/workflows/"
+          ORCH="/usr/local/bin/orchestrator-enterprise"
+          if [ ! -x "$ORCH" ]; then
+            echo "::error::orchestrator-enterprise not found — ensure runner has the binary mounted"
+            exit 1
+          fi
+
+          ARGS="scan .github/workflows/"
 
           if [ "$SCAN_FAIL_ON" != "none" ] && [ -n "$SCAN_FAIL_ON" ]; then
             ARGS="$ARGS --fail-on $SCAN_FAIL_ON"
@@ -74,5 +53,5 @@ jobs:
             done
           fi
 
-          echo "Running: orchestrator $ARGS"
-          cd .orchestrator-tool && cabal run orchestrator -- $ARGS
+          echo "Running: orchestrator-enterprise $ARGS (40 rules)"
+          "$ORCH" $ARGS
