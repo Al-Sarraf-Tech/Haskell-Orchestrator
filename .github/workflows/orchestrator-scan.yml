@@ -41,17 +41,17 @@ jobs:
             exit 1
           fi
 
-          ARGS="scan .github/workflows/"
-
+          # Global flags go before the subcommand
+          GLOBAL_FLAGS=""
           if [ "$SCAN_FAIL_ON" != "none" ] && [ -n "$SCAN_FAIL_ON" ]; then
-            ARGS="$ARGS --fail-on $SCAN_FAIL_ON"
+            GLOBAL_FLAGS="$GLOBAL_FLAGS --fail-on $SCAN_FAIL_ON"
           fi
 
           if [ -n "$SCAN_TAGS" ]; then
             for tag in $(echo "$SCAN_TAGS" | tr ',' ' '); do
-              ARGS="$ARGS --tags $tag"
+              GLOBAL_FLAGS="$GLOBAL_FLAGS --tags $tag"
             done
           fi
 
-          echo "Running: orchestrator-enterprise $ARGS (40 rules)"
-          "$ORCH" $ARGS
+          echo "Running: orchestrator-enterprise $GLOBAL_FLAGS scan .github/workflows/ (40 rules)"
+          "$ORCH" $GLOBAL_FLAGS scan .github/workflows/
