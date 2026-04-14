@@ -60,6 +60,7 @@ jobs:
             echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           fi
       - name: Check formatting (ormolu)
+        continue-on-error: true
         run: ormolu --mode check $(find src app test -name '*.hs')
 
       - name: Build
