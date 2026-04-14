@@ -53,7 +53,7 @@ jobs:
         run: |
           if ! command -v ormolu &>/dev/null; then
             mkdir -p "$HOME/.local/bin"
-            curl -fsSL "https://github.com/tweag/ormolu/releases/download/0.8.0.2/ormolu-x86_64-linux.zip" -o /tmp/ormolu.zip
+            curl -fsSL "https://github.com/tweag/ormolu/releases/download/0.7.7.0/ormolu-x86_64-linux.zip" -o /tmp/ormolu.zip
             perl -e 'use IO::Uncompress::Unzip qw(unzip $UnzipError); unzip("/tmp/ormolu.zip" => "$ENV{HOME}/.local/bin/ormolu") or die $UnzipError'
             chmod +x "$HOME/.local/bin/ormolu"
             rm -f /tmp/ormolu.zip
