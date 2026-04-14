@@ -4,11 +4,20 @@
 -- the standard rules from Orchestrator.Policy with all additional
 -- rule modules (Graph, Reuse, Matrix, Environment, Composite, Duplicate,
 -- SupplyChain, Performance, Cost, Hardening, Drift, Structure).
+--
+-- Also re-exports conflict detection and validation from the Policy sub-modules.
 module Orchestrator.Policy.Extended
   ( -- * Extended packs
     extendedPolicyPack
   , allCommunityRules
+    -- * Conflict detection (re-exported from Orchestrator.Policy.Conflicts)
+  , module Orchestrator.Policy.Conflicts
+    -- * Validation (re-exported from Orchestrator.Policy.Validate)
+  , module Orchestrator.Policy.Validate
   ) where
+
+import Orchestrator.Policy.Conflicts
+import Orchestrator.Policy.Validate
 
 import Orchestrator.Graph (graphCycleRule, graphOrphanRule)
 import Orchestrator.Policy (PolicyPack (..), PolicyRule (..), defaultPolicyPack)

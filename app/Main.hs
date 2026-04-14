@@ -1,6 +1,7 @@
 module Main (main) where
 
 import CLI (Command (..), Options (..), OutputMode (..), parseOptions)
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -10,8 +11,10 @@ import Orchestrator.Baseline (compareWithBaseline, loadBaseline, saveBaseline)
 import Orchestrator.Config (OrchestratorConfig (..), defaultConfig)
 import Orchestrator.Demo (runDemo)
 import Orchestrator.Diff (generatePlan, renderPlanText)
+import Orchestrator.Errors (formatError)
 import Orchestrator.Fix (FixConfig (..), analyzeFixable, applyFixes, defaultFixConfig)
 import Orchestrator.Gate (gateFindings, parseFailOn)
+import Orchestrator.Interactive (interactiveRulePicker)
 import Orchestrator.Policy
     ( PolicyPack (..), PolicyRule (..) )
 import Orchestrator.Policy.Extended (extendedPolicyPack)
@@ -27,7 +30,9 @@ import Orchestrator.Scan (findWorkflowFiles, scanLocalPath)
 import Orchestrator.Parser (parseWorkflowFile)
 import Orchestrator.Types
 import Orchestrator.Validate (ValidationResult (..), validateWorkflow)
-import System.Directory (doesDirectoryExist, doesFileExist)
+import Control.Concurrent (threadDelay)
+import Data.IORef (newIORef, readIORef, writeIORef)
+import System.Directory (doesDirectoryExist, doesFileExist, getModificationTime)
 import System.Exit (ExitCode (..), exitWith, exitFailure)
 import System.IO (hPutStrLn, stderr)
 
@@ -72,14 +77,24 @@ findingsExitCode fs
   | otherwise = ExitSuccess
 
 runScan :: Options -> FilePath -> IO ()
-runScan opts path = do
-  let pack = activePack opts
+runScan opts path
+  | optWatch opts = do
+      let action = runScanOnce opts path
+      watchLoop action (path ++ "/.github/workflows")
+  | otherwise = runScanOnce opts path >> pure ()
+
+runScanOnce :: Options -> FilePath -> IO ExitCode
+runScanOnce opts path = do
+  basePack <- if optInteractive opts
+                then interactiveRulePicker (activePack opts)
+                else pure (activePack opts)
+  let pack = basePack
       scfg = cfgScan defaultConfig
   result <- scanLocalPath pack scfg path
   case result of
     Left err -> do
-      hPutStrLn stderr $ "Error: " ++ show err
-      exitWith (ExitFailure 2)
+      TIO.hPutStrLn stderr (formatError err)
+      pure (ExitFailure 2)
     Right sr -> do
       findings <- applyBaseline opts (scanFindings sr)
       TIO.putStrLn $ "Scanning: " <> T.pack path
@@ -87,10 +102,41 @@ runScan opts path = do
       TIO.putStrLn $ "Rules active: " <> T.pack (show (length (packRules pack)))
       TIO.putStrLn ""
       TIO.putStrLn $ renderOutput (optOutput opts) findings
-      let exitCode = case optFailOn opts >>= parseFailOn of
-            Just threshold -> gateFindings threshold findings
-            Nothing        -> findingsExitCode findings
-      exitWith exitCode
+      pure $ case optFailOn opts >>= parseFailOn of
+        Just threshold -> gateFindings threshold findings
+        Nothing        -> findingsExitCode findings
+
+-- | Poll directory for .yml modification-time changes. Returns current snapshot.
+snapshotTimes :: FilePath -> IO (Map.Map FilePath String)
+snapshotTimes dir = do
+  dirExists <- doesDirectoryExist dir
+  if not dirExists
+    then pure Map.empty
+    else do
+      files <- findWorkflowFiles 1 dir
+      pairs <- mapM (\f -> (f,) . show <$> getModificationTime f) files
+      pure (Map.fromList pairs)
+
+-- | Polling watch loop: re-runs action when any .yml file in dir changes.
+-- Polls every 2 seconds. Exits on Ctrl+C (default signal handling).
+watchLoop :: IO ExitCode -> FilePath -> IO ()
+watchLoop action dir = do
+  TIO.putStrLn "Watching for changes... (Ctrl+C to stop)"
+  _ <- action
+  initTimes <- snapshotTimes dir
+  lastTimesRef <- newIORef initTimes
+  let loop = do
+        threadDelay 2000000
+        currentTimes <- snapshotTimes dir
+        lastTimes <- readIORef lastTimesRef
+        if currentTimes /= lastTimes
+          then do
+            TIO.putStrLn "\n--- Changes detected, re-scanning... ---"
+            _ <- action
+            writeIORef lastTimesRef currentTimes
+          else pure ()
+        loop
+  loop
 
 runValidate :: Options -> FilePath -> IO ()
 runValidate opts path = do
@@ -147,7 +193,7 @@ runFix _opts path writeMode = do
 runDoctor :: Options -> IO ()
 runDoctor opts = do
   TIO.putStrLn "Orchestrator Doctor"
-  TIO.putStrLn (T.replicate 50 "═")
+  TIO.putStrLn (T.replicate 50 "=")
   TIO.putStrLn ""
 
   let PolicyPack pname rules = activePack opts
@@ -180,7 +226,7 @@ runDoctor opts = do
   TIO.putStrLn "                 For multi-repo batch scanning, see Business edition."
   TIO.putStrLn "                 For org-wide governance, see Enterprise edition."
   TIO.putStrLn ""
-  TIO.putStrLn (T.replicate 50 "═")
+  TIO.putStrLn (T.replicate 50 "=")
   TIO.putStrLn "Doctor complete. No issues detected."
 
 runInit :: IO ()
@@ -249,16 +295,16 @@ runRules :: Options -> IO ()
 runRules opts = do
   let PolicyPack pname rules = activePack opts
   TIO.putStrLn $ "Policy Pack: " <> pname
-  TIO.putStrLn $ T.replicate 70 "─"
+  TIO.putStrLn $ T.replicate 70 "-"
   TIO.putStrLn $ padRight 14 "RULE ID" <> padRight 10 "SEVERITY" <> padRight 14 "CATEGORY" <> "NAME"
-  TIO.putStrLn $ T.replicate 70 "─"
+  TIO.putStrLn $ T.replicate 70 "-"
   mapM_ (\r -> TIO.putStrLn $
     padRight 14 (ruleId r)
     <> padRight 10 (T.pack (show (ruleSeverity r)))
     <> padRight 14 (T.pack (show (ruleCategory r)))
     <> ruleName r
     ) rules
-  TIO.putStrLn $ T.replicate 70 "─"
+  TIO.putStrLn $ T.replicate 70 "-"
   TIO.putStrLn $ T.pack (show (length rules)) <> " rules"
   where
     padRight n t = T.take n (t <> T.replicate n " ")

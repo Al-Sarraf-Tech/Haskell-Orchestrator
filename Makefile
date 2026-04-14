@@ -1,4 +1,4 @@
-.PHONY: build test clean demo doctor install format lint check verify tier-check contract-check verify-standalone
+.PHONY: build test clean demo doctor install format lint check verify tier-check contract-check verify-standalone bench coverage haddock container ci-local
 
 build:
 	cabal build all
@@ -43,3 +43,18 @@ contract-check:
 
 verify-standalone:
 	@./scripts/verify-standalone-install.sh
+
+bench:
+	cabal bench all
+
+coverage:
+	cabal test all --enable-coverage --test-show-details=direct
+
+haddock:
+	cabal haddock all --haddock-html
+
+container:
+	podman build -f Containerfile -t orchestrator:local .
+
+ci-local: lint test coverage
+	@echo "All local CI checks passed."

@@ -54,7 +54,9 @@ library
     Orchestrator.Parser
     Orchestrator.Permissions.Minimum
     Orchestrator.Policy
+    Orchestrator.Policy.Conflicts
     Orchestrator.Policy.Extended
+    Orchestrator.Policy.Validate
     Orchestrator.Render
     Orchestrator.Render.Markdown
     Orchestrator.Render.Sarif
@@ -70,6 +72,8 @@ library
     Orchestrator.Rules.Reuse
     Orchestrator.Rules.Structure
     Orchestrator.Rules.SupplyChain
+    Orchestrator.Errors
+    Orchestrator.Interactive
     Orchestrator.Scan
     Orchestrator.Suppress
     Orchestrator.Gate
@@ -113,6 +117,7 @@ executable orchestrator
     CLI
   build-depends:
     , base            >=4.18  && <4.20
+    , containers       >=0.6  && <0.8
     , directory        >=1.3  && <1.4
     , orchestrator
     , optparse-applicative >=0.17 && <0.19
@@ -126,30 +131,60 @@ test-suite orchestrator-test
   hs-source-dirs:   test
   main-is:          Main.hs
   other-modules:
+    Test.ActionsCatalog
+    Test.ActionsPin
+    Test.Errors
+    Test.Interactive
+    Test.Baseline
+    Test.Changelog
+    Test.Complexity
+    Test.CompositeRule
+    Test.Config
+    Test.Cost
+    Test.Demo
+    Test.Diff
+    Test.DriftRule
+    Test.DuplicateRule
+    Test.EdgeCases
+    Test.EnvironmentRule
+    Test.Fix
+    Test.Formatter
+    Test.Gate
+    Test.GitHub
+    Test.Golden
+    Test.Graph
+    Test.Hardening
+    Test.Hook
+    Test.Integration
+    Test.LSP
+    Test.MatrixRule
     Test.Model
     Test.Parser
-    Test.Policy
-    Test.Validate
-    Test.Diff
-    Test.Demo
-    Test.Config
-    Test.Golden
-    Test.EdgeCases
-    Test.Properties
-    Test.Integration
-    Test.Tags
-    Test.Suppress
-    Test.Gate
-    Test.Cost
-    Test.DriftRule
-    Test.Hardening
     Test.Performance
+    Test.PermissionsMinimum
+    Test.Policy
+    Test.PolicyConflicts
+    Test.PolicyValidate
+    Test.Properties
+    Test.RenderMarkdown
+    Test.RenderSarif
+    Test.RenderUpgrade
+    Test.ReuseRule
+    Test.Scan
+    Test.Secrets
+    Test.Simulate
     Test.StructureRule
+    Test.Suppress
     Test.SupplyChain
+    Test.Tags
+    Test.UI
+    Test.Validate
+    Test.Version
   build-depends:
     , base            >=4.18  && <4.20
     , bytestring      >=0.11  && <0.13
     , containers       >=0.6  && <0.8
+    , directory        >=1.3  && <1.4
     , filepath         >=1.4  && <1.6
     , orchestrator
     , QuickCheck       >=2.14  && <2.16
@@ -158,3 +193,17 @@ test-suite orchestrator-test
     , tasty-quickcheck >=0.10  && <0.12
     , text             >=2.0  && <2.2
     , yaml             >=0.11 && <0.12
+
+benchmark orchestrator-bench
+  import:           warnings
+  default-language: GHC2021
+  default-extensions: DerivingStrategies OverloadedStrings
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   bench
+  main-is:          Main.hs
+  ghc-options:      -O2 -threaded -rtsopts
+  build-depends:
+    , base             >=4.18  && <4.20
+    , bytestring       >=0.11  && <0.13
+    , orchestrator
+    , tasty-bench      >=0.3   && <0.5

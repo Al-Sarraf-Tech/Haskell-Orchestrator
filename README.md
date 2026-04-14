@@ -481,6 +481,29 @@ python3 -m json.tool sbom-4.0.0.json
 
 ---
 
+## Shell Completions
+
+`orchestrator` uses `optparse-applicative`, which provides built-in completion script generation.
+
+**Bash:**
+```bash
+orchestrator --bash-completion-script orchestrator > ~/.local/share/bash-completion/completions/orchestrator
+```
+
+**Zsh:**
+```bash
+orchestrator --zsh-completion-script orchestrator > ~/.local/share/zsh/site-functions/_orchestrator
+```
+
+**Fish:**
+```bash
+orchestrator --fish-completion-script orchestrator > ~/.config/fish/completions/orchestrator.fish
+```
+
+Pre-generated completion scripts are included in each release archive under `completions/`.
+
+---
+
 ## Sponsor
 
 Haskell Orchestrator is free and open source. If it saves your team time,

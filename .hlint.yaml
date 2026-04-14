@@ -1,0 +1,4 @@
+# HLint configuration for Haskell Orchestrator
+- ignore: {name: "Use newtype instead of data"}
+- ignore: {name: "Reduce duplication", within: [Test]}
+- ignore: {name: "Redundant bracket"}

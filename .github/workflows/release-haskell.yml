@@ -6,6 +6,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -145,6 +147,15 @@ jobs:
           bash packaging/rpm/build-rpm.sh "_bin/orchestrator" "$VERSION" || echo "::warning::RPM build skipped (rpmbuild not available)"
           cp *.rpm staging/ 2>/dev/null || true
 
+      - name: Generate shell completions (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p completions
+          ./_bin/orchestrator --bash-completion-script orchestrator > completions/orchestrator.bash
+          ./_bin/orchestrator --zsh-completion-script orchestrator > completions/_orchestrator
+          ./_bin/orchestrator --fish-completion-script orchestrator > completions/orchestrator.fish
+
       - name: Generate checksums (Unix)
         if: runner.os != 'Windows'
         shell: bash
@@ -176,6 +187,45 @@ jobs:
             staging/*.rpm
             staging/SHA256SUMS.txt
           retention-days: 5
+
+      - name: Upload completions artifact (Unix)
+        if: runner.os != 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: completions
+          path: completions/
+          retention-days: 5
+
+  docs:
+    name: Publish API docs
+    needs: [repo-guard]
+    runs-on: [self-hosted, haskell-slim]
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Haskell paths
+        shell: bash
+        run: |
+          echo "$HOME/.ghcup/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.cabal/bin" >> "$GITHUB_PATH"
+          echo "/opt/haskell/.ghcup/bin" >> "$GITHUB_PATH"
+      - name: Generate Haddock
+        run: cabal haddock all --haddock-html --haddock-hyperlink-source
+      - name: Prepare pages content
+        run: |
+          mkdir -p _site
+          cp -r $(find dist-newstyle -path '*/doc/html/*' -type d | head -1)/* _site/ || true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   publish:
     name: Publish Release
@@ -280,3 +330,28 @@ jobs:
             release/*
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
+
+  container:
+    name: Build and push container
+    needs: [repo-guard, build]
+    runs-on: [self-hosted, haskell-slim]
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build container image
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          podman build -f Containerfile -t ghcr.io/al-sarraf-tech/orchestrator:${VERSION} .
+          podman tag ghcr.io/al-sarraf-tech/orchestrator:${VERSION} ghcr.io/al-sarraf-tech/orchestrator:latest
+
+      - name: Push to GHCR
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          podman push ghcr.io/al-sarraf-tech/orchestrator:${VERSION}
+          podman push ghcr.io/al-sarraf-tech/orchestrator:latest

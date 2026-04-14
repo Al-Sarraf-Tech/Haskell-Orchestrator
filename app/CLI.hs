@@ -17,14 +17,16 @@ data OutputMode = OutText | OutJSON | OutSarif | OutMarkdown
 
 -- | Top-level CLI options.
 data Options = Options
-  { optConfigFile :: !(Maybe FilePath)
-  , optVerbose    :: !Bool
-  , optOutput     :: !OutputMode
-  , optJobs       :: !(Maybe Int)
-  , optBaseline   :: !(Maybe FilePath)
-  , optFailOn     :: !(Maybe Text)
-  , optTags       :: ![Text]
-  , optCommand    :: !Command
+  { optConfigFile   :: !(Maybe FilePath)
+  , optVerbose      :: !Bool
+  , optOutput       :: !OutputMode
+  , optJobs         :: !(Maybe Int)
+  , optBaseline     :: !(Maybe FilePath)
+  , optFailOn       :: !(Maybe Text)
+  , optTags         :: ![Text]
+  , optWatch        :: !Bool
+  , optInteractive  :: !Bool
+  , optCommand      :: !Command
   } deriving stock (Show)
 
 -- | CLI subcommands.
@@ -91,6 +93,16 @@ optionsParser = Options
         <> metavar "TAG"
         <> help "Filter rules by tag (security|performance|cost|style|structure). Repeatable."
         ))
+  <*> switch
+        ( long "watch"
+        <> short 'w'
+        <> help "Watch for changes and re-scan (polling, 2s interval)"
+        )
+  <*> switch
+        ( long "interactive"
+        <> short 'i'
+        <> help "Interactively select rules before scanning"
+        )
   <*> commandParser
 
 outputModeParser :: Parser OutputMode

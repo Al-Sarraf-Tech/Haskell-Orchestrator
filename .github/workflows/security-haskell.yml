@@ -56,6 +56,16 @@ jobs:
           cabal outdated || true
           echo "Dependency audit complete."
 
+      - name: Check Haskell advisories
+        run: |
+          if command -v cabal-audit >/dev/null 2>&1; then
+            cabal-audit || echo "Advisory check found issues (review required)"
+          elif command -v cabal >/dev/null 2>&1; then
+            echo "Checking for outdated dependencies with known issues..."
+            cabal outdated 2>&1 | head -30
+            echo "Note: Install cabal-audit for full advisory database checking"
+          fi
+
   secret-scan:
     name: Secret Scan
     runs-on: [self-hosted, haskell-slim]

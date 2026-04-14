@@ -1,22 +1,28 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Properties (tests) where
 
-import Data.Maybe (isNothing)
+import Data.Maybe (isNothing, mapMaybe)
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text qualified as T
+import Orchestrator.Actions.Pin (analyzePinning)
+import Orchestrator.Baseline (compareWithBaseline, Baseline (..))
+import Orchestrator.Complexity (computeComplexity, csScore)
 import Orchestrator.Diff
 import Orchestrator.Gate (gateFindings)
+import Orchestrator.Graph (buildJobGraph, topologicalSort, graphNodes)
 import Orchestrator.Model
 import Orchestrator.Policy
 import Orchestrator.Render
+import Orchestrator.Render.Markdown (renderMarkdownFindings)
+import Orchestrator.Render.Sarif (renderSarifJSON)
 import Orchestrator.Suppress (applySuppression)
 import Orchestrator.Tags (filterByTags)
 import Orchestrator.Types
 import Orchestrator.Validate
 import System.Exit (ExitCode (..))
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.QuickCheck (testProperty, Arbitrary (..), arbitraryBoundedEnum, elements, listOf, oneof, choose)
+import Test.Tasty.QuickCheck (testProperty, Arbitrary (..), arbitraryBoundedEnum, elements, listOf, oneof, choose, resize, withMaxSuccess, forAll)
 
 ------------------------------------------------------------------------
 -- Arbitrary instances
@@ -236,6 +242,60 @@ tests = testGroup "Properties"
   , testProperty "Tag filtering with empty tags returns all rules" $
       let rules = packRules defaultPolicyPack
       in length (filterByTags [] rules) == length rules
+
+  -- Graph properties (resize 5: Workflow Arbitrary is expensive at large sizes)
+  , testProperty "topologicalSort result is subset of graph nodes" $
+      withMaxSuccess 50 $
+      forAll (resize 5 arbitrary) $
+      \(wf :: Workflow) ->
+        let wf'  = wf { wfJobs = map (\j -> j { jobNeeds = [] }) (wfJobs wf) }
+            g    = buildJobGraph wf'
+            topo = topologicalSort g
+        in all (`Set.member` graphNodes g) topo
+
+  , testProperty "buildJobGraph includes all jobs from workflow" $
+      withMaxSuccess 50 $
+      forAll (resize 5 arbitrary) $
+      \(wf :: Workflow) ->
+        let g     = buildJobGraph wf
+            jobIds = map jobId (wfJobs wf)
+        in all (\jid -> Set.member jid (graphNodes g)) jobIds
+
+  -- Complexity properties
+  , testProperty "computeComplexity score is non-negative" $
+      withMaxSuccess 50 $
+      forAll (resize 5 arbitrary) $
+      \(wf :: Workflow) ->
+        csScore (computeComplexity wf) >= 0
+
+  -- Render properties
+  , testProperty "renderMarkdownFindings non-empty for non-empty findings" $
+      \(findings :: [Finding]) ->
+        null findings || not (T.null (renderMarkdownFindings findings))
+
+  , testProperty "renderSarifJSON output contains version 2.1.0" $
+      \(findings :: [Finding]) ->
+        T.isInfixOf "2.1.0" (renderSarifJSON "orchestrator" "1.0.0" findings)
+
+  -- Pin properties (resize 5: Workflow Arbitrary is expensive at large sizes)
+  , testProperty "analyzePinning length <= steps with uses" $
+      withMaxSuccess 50 $
+      forAll (resize 5 arbitrary) $
+      \(wf :: Workflow) ->
+        let pins    = analyzePinning wf
+            allSteps = concatMap jobSteps (wfJobs wf)
+            usesCount = length (mapMaybe stepUses allSteps)
+        in length pins <= usesCount
+
+  -- Baseline properties
+  , testProperty "compareWithBaseline empty baseline returns all findings" $
+      \(findings :: [Finding]) ->
+        let emptyBaseline = Baseline
+              { baselineFingerprints = Set.empty
+              , baselineCount        = 0
+              , baselineVersion      = "test"
+              }
+        in length (compareWithBaseline emptyBaseline findings) == length findings
   ]
 
 instance Arbitrary ScanTarget where

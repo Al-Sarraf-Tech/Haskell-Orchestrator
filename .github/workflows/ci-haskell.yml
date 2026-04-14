@@ -49,11 +49,58 @@ jobs:
       - name: Update package index
         run: cabal update
 
+      - name: Check formatting (ormolu)
+        run: ormolu --mode check $(find src app test -name '*.hs')
+
       - name: Build
         run: cabal build all
 
       - name: Test
         run: cabal test all --test-show-details=direct
+
+      - name: Test with coverage
+        run: |
+          cabal test all --enable-coverage --test-show-details=direct
+          echo "Coverage report generated"
+
+      - name: Build with HIE files for weeder
+        run: cabal build all --ghc-options="-fwrite-ide-info -hiedir=.hie"
+
+      - name: Run weeder (dead code detection)
+        run: |
+          if command -v weeder >/dev/null 2>&1; then
+            weeder --hie-directory .hie --hie-file-extension .hie || echo "weeder found issues (non-blocking)"
+          else
+            echo "weeder not installed, skipping dead code check"
+          fi
+
+      - name: Static analysis (stan)
+        run: |
+          if command -v stan >/dev/null 2>&1; then
+            stan --hiedir=.hie report || echo "stan found issues (non-blocking)"
+          else
+            echo "stan not installed, skipping static analysis"
+          fi
+
+      - name: Orchestrator self-scan (SARIF)
+        run: |
+          if command -v orchestrator >/dev/null 2>&1; then
+            orchestrator scan .github/workflows/ --sarif > orchestrator-results.sarif 2>/dev/null || true
+          elif [ -f dist-newstyle/build/*/ghc-*/orchestrator-*/x/orchestrator/build/orchestrator/orchestrator ]; then
+            ORCH=$(find dist-newstyle -name orchestrator -type f -executable | head -1)
+            "$ORCH" scan .github/workflows/ --sarif > orchestrator-results.sarif 2>/dev/null || true
+          fi
+        continue-on-error: true
+
+      - name: Upload SARIF results
+        if: always() && hashFiles('orchestrator-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: orchestrator-results.sarif
+        continue-on-error: true
+
+      - name: Generate Haddock docs
+        run: cabal haddock all --haddock-html 2>&1 | tail -5
 
   lint:
     name: Lint
@@ -69,7 +116,7 @@ jobs:
         env:
           LANG: C.UTF-8
           LC_ALL: C.UTF-8
-        run: hlint src/ app/ --no-exit-code 2>&1 | cat || true
+        run: hlint src/ app/ 2>&1 | cat
 
   capability-check:
     name: Capability Contract Check
