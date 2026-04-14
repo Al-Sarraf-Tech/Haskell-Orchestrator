@@ -13,15 +13,16 @@ Haskell Orchestrator parses workflow YAML into a typed domain model, evaluates
 without modifying any files. It covers security, supply chain, performance,
 cost, structure, and drift concerns in a single pass.
 
-> This is not a YAML linter. It understands GitHub Actions semantics:
-> permissions scopes, action pinning, job graph cycles, matrix explosion,
-> environment gates, concurrency, and more.
+This is not a YAML linter. It understands GitHub Actions semantics:
+permissions scopes, action pinning, job graph topology, matrix expansion,
+environment gates, concurrency, privilege escalation vectors, and more.
 
 ---
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Architecture](#architecture)
 - [Installation](#installation)
 - [CI Integration](#ci-integration)
 - [Rules Reference](#rules-reference)
@@ -31,6 +32,9 @@ cost, structure, and drift concerns in a single pass.
 - [Edition Comparison](#edition-comparison)
 - [Safety Model](#safety-model)
 - [Development](#development)
+- [Documentation](#documentation)
+- [Release Integrity](#release-integrity)
+- [Shell Completions](#shell-completions)
 - [License](#license)
 
 ---
@@ -65,12 +69,87 @@ orchestrator scan /path/to/your/repo --fail-on error
           Supply-chain risk: tag references can be mutated.
           Fix: Pin to a full commit SHA.
 
-[WARNING] [SUPPLY-001] Workflow does not pin all third-party actions to a SHA.
-          Fix: Run 'orchestrator fix --tags supply-chain' for a remediation plan.
+[WARNING] [HARD-001] Step uses actions/checkout without 'persist-credentials: false'.
+          The GitHub token is written into the local git config.
+          Fix: Add 'with: { persist-credentials: false }' to the checkout step.
 
 Summary: 3 findings (1 error, 2 warnings)
 Exit code: 1  (--fail-on error threshold reached)
 ```
+
+---
+
+## Architecture
+
+Orchestrator is a pure read-only pipeline. No workflow file is ever modified
+unless `fix --write` is explicitly passed.
+
+```
+YAML Input
+.github/workflows/*.yml
+        │
+        ▼
+┌───────────────────┐
+│ Parser            │  Orchestrator.Parser
+│ YAML → typed AST  │  (Yaml, Aeson)
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│ Domain Model      │  Orchestrator.Model / Orchestrator.Types
+│ Workflow, Job,    │  Strict fields, no partial functions
+│ Step, Permissions │
+└────────┬──────────┘
+         │
+    ┌────┴──────────────────────────┐
+    │                               │
+    ▼                               ▼
+┌───────────────────┐   ┌───────────────────────┐
+│ Structural        │   │ Policy Engine          │
+│ Validation        │   │ Orchestrator.Policy    │
+│ Orchestrator.     │   │ Orchestrator.Policy.   │
+│ Validate /        │   │   Extended             │
+│ Orchestrator.     │   │ Orchestrator.Rules.*   │
+│ Graph             │   │ (36 rules, tagged)     │
+└────────┬──────────┘   └───────────┬───────────┘
+         │                          │
+         └──────────┬───────────────┘
+                    │
+                    ▼
+         ┌──────────────────┐
+         │ Baseline Filter  │  Orchestrator.Baseline
+         │ Suppress         │  Orchestrator.Suppress
+         └──────────┬───────┘
+                    │
+                    ▼
+         ┌──────────────────┐
+         │ Renderer         │  Orchestrator.Render
+         │ Text / JSON      │  Orchestrator.Render.Sarif
+         │ SARIF v2.1.0     │  Orchestrator.Render.Markdown
+         │ Markdown         │
+         └──────────────────┘
+```
+
+**Additional analysis modules** (used by specific commands):
+
+| Module | Purpose |
+|--------|---------|
+| `Orchestrator.Simulate` | Dry-run engine: expands matrix, evaluates if-conditions, traces DAG, estimates duration and cost |
+| `Orchestrator.Permissions.Minimum` | Computes minimum required permissions from action catalog; compares against declared permissions |
+| `Orchestrator.GitHub` | Remote workflow scanning via GitHub API (owner/repo or org targets) |
+| `Orchestrator.Graph` | Job dependency DAG: cycle detection, orphan detection, critical path |
+| `Orchestrator.Complexity` | Workflow complexity scoring |
+| `Orchestrator.Diff` | Delta between current findings and a saved baseline |
+| `Orchestrator.Fix` | Generates fix instructions for mechanical issues |
+| `Orchestrator.UI` | Embedded Warp HTTP server for web dashboard (port 8420, LAN/Tailscale only) |
+
+**Language and build:**
+
+- GHC 9.6.7, GHC2021 language edition
+- `DerivingStrategies`, `OverloadedStrings`, strict fields on all data types
+- `-Wall -Wcompat` + full extended warning set; zero-warning gate in CI
+- No partial functions; all file I/O wrapped with `Control.Exception.try`
+- Build parallelism capped at 6 cores to prevent thermal issues on constrained runners
 
 ---
 
@@ -105,7 +184,7 @@ CycloneDX SBOM.
 ### From Source
 
 ```bash
-# Prerequisites: GHC 9.6.x, Cabal 3.10+
+# Prerequisites: GHC 9.6.7, Cabal 3.10+
 git clone https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator.git
 cd Haskell-Orchestrator
 cabal update
@@ -145,28 +224,38 @@ jobs:
         run: orchestrator scan .github/workflows/ --fail-on warning
 ```
 
-`--fail-on` accepts: `warning`, `error`, `critical`
+`--fail-on` accepts: `info`, `warning`, `error`, `critical`
 
 | Value | Exits non-zero when... |
 |-------|----------------------|
+| `info` | any finding exists |
 | `warning` | any warning, error, or critical finding exists |
 | `error` | any error or critical finding exists |
 | `critical` | any critical finding exists |
 
 ### Selective Scanning with `--tags`
 
-Run only the rules relevant to a given concern:
+`--tags` is repeatable. Pass it once per tag:
 
 ```bash
 # Security rules only
 orchestrator scan . --tags security
 
-# Multiple tag groups
-orchestrator scan . --tags security,supply-chain
+# Security and supply chain rules
+orchestrator scan . --tags security --tags supply-chain
 
 # Performance and cost rules
-orchestrator scan . --tags performance,cost
+orchestrator scan . --tags performance --tags cost
 ```
+
+### SARIF Output for GitHub Code Scanning
+
+```bash
+orchestrator scan .github/workflows/ --sarif > results.sarif
+```
+
+Upload with the `github/codeql-action/upload-sarif` action to surface findings
+as GitHub code scanning alerts.
 
 ### CI Self-Check (Dogfooding)
 
@@ -189,59 +278,66 @@ can be selectively enabled with `--tags`.
 Run `orchestrator rules` to list all rules. Run `orchestrator explain RULE_ID`
 for detailed guidance on any rule.
 
-### Security
+### Security (10 rules)
 
 | ID | Name | Severity | Tags |
 |----|------|----------|------|
 | PERM-001 | Permissions Required | Warning | security |
 | PERM-002 | Broad Permissions | Error | security |
-| SEC-001 | Unpinned Third-Party Actions | Warning | security, supply-chain |
+| SEC-001 | Unpinned Actions | Warning | security |
 | SEC-002 | Secret in Run Step | Error | security |
-| SEC-003 | Workflow Injection via Expression | Error | security, hardening |
-| SEC-004 | Dangerous Permissions Combination | Error | security, hardening |
-| SEC-005 | Missing CODEOWNERS for Workflow Dir | Warning | security |
-| HARD-001 | Missing `shell` in Run Step | Warning | security, hardening |
-| HARD-002 | `continue-on-error: true` in Critical Job | Warning | security, hardening |
-| HARD-003 | Privileged Container Without Justification | Error | security, hardening |
+| SEC-003 | Workflow Run Privilege Escalation | Error | security |
+| SEC-004 | Artifact Poisoning | Warning / Error | security |
+| SEC-005 | OIDC Token Scope | Warning | security |
+| HARD-001 | Missing persist-credentials: false | Warning | security |
+| HARD-002 | Default Shell Unset | Warning | security |
+| HARD-003 | pull_request_target Risk | Error | security |
 
-### Supply Chain
+Notes:
+- **SEC-003** fires when `pull_request_target` is combined with an explicit PR head-ref checkout — a critical write-token attack vector.
+- **SEC-004** severity escalates from Warning to Error when the workflow uses a `workflow_run` trigger (artifacts may originate from fork workflows).
+- **SEC-005** fires when `id-token: write` is granted but no recognized deployment action (AWS, Azure, GCP, Vault) is present.
+- **HARD-001** fires when `actions/checkout` is used without `persist-credentials: false`.
+- **HARD-003** fires on `pull_request_target` combined with head-ref checkout.
+
+### Supply Chain (2 rules)
 
 | ID | Name | Severity | Tags |
 |----|------|----------|------|
-| SUPPLY-001 | Actions Not Pinned to SHA | Warning | supply-chain, security |
-| SUPPLY-002 | First-Party Action Without Version Pin | Info | supply-chain |
+| SUPPLY-001 | Abandoned Action | Warning | security |
+| SUPPLY-002 | Typosquat Risk | Info | security |
 
-### Performance
+### Performance (2 rules)
 
 | ID | Name | Severity | Tags |
 |----|------|----------|------|
 | PERF-001 | Missing Cache for Package Manager | Warning | performance |
 | PERF-002 | Sequential Jobs That Could Parallelize | Info | performance |
 
-### Cost
+### Cost (2 rules)
 
 | ID | Name | Severity | Tags |
 |----|------|----------|------|
-| COST-001 | Matrix Explosion (Too Many Combinations) | Warning | cost, matrix |
+| COST-001 | Matrix Waste | Warning | cost |
 | COST-002 | Redundant Artifact Upload/Download | Info | cost |
 
-### Structure
+### Structure (18 rules)
 
 | ID | Name | Severity | Tags |
 |----|------|----------|------|
-| RUN-001 | Self-Hosted Runner Detection | Info | structure, runners |
+| RUN-001 | Self-Hosted Runner Detection | Info | structure |
 | CONC-001 | Missing Concurrency Config | Info | structure |
 | RES-001 | Missing Timeout | Warning | structure |
-| NAME-001 | Workflow Naming | Info | structure, naming |
-| NAME-002 | Job Naming Convention | Info | structure, naming |
-| TRIG-001 | Wildcard Triggers | Info | structure, triggers |
+| NAME-001 | Workflow Naming | Info | structure |
+| NAME-002 | Job Naming Convention | Info | structure |
+| TRIG-001 | Wildcard Triggers | Info | structure |
 | GRAPH-001 | Workflow Cycle | Error | structure |
 | GRAPH-002 | Orphan Job | Warning | structure |
 | DUP-001 | Duplicate Job ID | Error | structure |
 | REUSE-001 | Reusable Input Validation | Warning | structure |
 | REUSE-002 | Unused Reusable Output | Info | structure |
-| MAT-001 | Matrix Explosion | Warning | structure, matrix |
-| MAT-002 | Matrix Fail-Fast Disabled | Info | structure, matrix |
+| MAT-001 | Matrix Explosion | Warning | structure |
+| MAT-002 | Matrix Fail-Fast Disabled | Info | structure |
 | ENV-001 | Missing Environment URL | Info | structure |
 | ENV-002 | Unprotected Approval Gate | Warning | structure |
 | COMP-001 | Composite Action Description | Info | structure |
@@ -249,7 +345,7 @@ for detailed guidance on any rule.
 | STRUCT-001 | Circular Workflow Calls | Error | structure |
 | STRUCT-002 | Unreferenced Reusable Workflows | Warning | structure |
 
-### Drift
+### Drift (1 rule)
 
 | ID | Name | Severity | Tags |
 |----|------|----------|------|
@@ -291,9 +387,9 @@ policy:
 |---------|-------------|
 | `scan PATH` | Scan workflows and evaluate all configured rules |
 | `validate PATH` | Validate workflow structure only (no policy rules) |
-| `diff PATH` | Show current issues relative to baseline |
+| `diff PATH` | Show current issues relative to a saved baseline |
 | `plan PATH` | Generate a prioritized remediation plan |
-| `fix PATH` | Produce fix instructions for mechanical issues |
+| `fix PATH [--write]` | Produce fix instructions; `--write` applies safe mechanical fixes |
 | `baseline PATH` | Save current findings as a baseline for drift detection |
 | `demo` | Run a full scan/validate/plan cycle on synthetic fixtures |
 | `doctor` | Diagnose environment, configuration, and connectivity |
@@ -311,12 +407,14 @@ policy:
 | `-c, --config FILE` | Configuration file (default: `.orchestrator.yml`) |
 | `-v, --verbose` | Enable verbose output |
 | `--json` | Output as JSON |
-| `--sarif` | Output as SARIF |
-| `--markdown` | Output as Markdown |
-| `--baseline FILE` | Compare against a saved baseline |
+| `--sarif` | Output as SARIF v2.1.0 |
+| `--markdown`, `--md` | Output as Markdown |
+| `--baseline FILE` | Compare against a saved baseline (show only new findings) |
 | `-j, --jobs N` | Number of parallel workers |
-| `--fail-on warning\|error\|critical` | Exit non-zero when findings meet or exceed this severity |
-| `--tags TAG[,TAG...]` | Run only rules matching these tags |
+| `--fail-on SEVERITY` | Exit non-zero when findings meet or exceed this severity (`info\|warning\|error\|critical`) |
+| `--tags TAG` | Filter rules by tag. Repeatable: `--tags security --tags cost` |
+| `-w, --watch` | Watch for file changes and re-scan (2s polling interval) |
+| `-i, --interactive` | Interactively select rules before scanning |
 
 ---
 
@@ -347,7 +445,7 @@ resources:
   profile: safe           # safe, balanced, or fast
 
 gate:
-  fail_on: error          # Exit non-zero threshold: warning, error, or critical
+  fail_on: error          # Exit non-zero threshold: info, warning, error, or critical
 ```
 
 ---
@@ -385,10 +483,9 @@ proprietary products for teams with broader needs.
 See [`docs/edition-comparison.md`](docs/edition-comparison.md) for the full
 comparison and decision tree.
 
-### Coexistence
+### Binary Names
 
-All three editions install independently. They use distinct binary names and
-do not share runtime state:
+All three editions install independently and do not share runtime state:
 
 | Edition | Binary | License |
 |---------|--------|---------|
@@ -405,14 +502,18 @@ Haskell Orchestrator is read-only and self-contained by design:
 - **Explicit targets only.** You must specify what to scan. There is no
   automatic filesystem discovery or home-directory crawling.
 - **No file modification.** Scan, validate, and plan operations never write
-  to disk. Reports and plans are output only.
+  to disk. Reports and plans are output only. `fix` is dry-run by default;
+  pass `--write` to apply changes.
 - **No network access during local scans.** Local path scans are pure
-  filesystem reads with no network I/O.
+  filesystem reads with no network I/O. GitHub API access is only used when
+  a `GitHubRepo` or `GitHubOrg` target is explicitly specified.
 - **No telemetry.** The binary does not phone home. No background processes.
 - **Deterministic output.** The same input and configuration always produce
   the same findings.
 - **Bounded parallelism.** Default worker count is conservative. `--jobs`
-  gives explicit control.
+  gives explicit control. Build parallelism is capped at 6 cores.
+- **Dashboard binding.** The `ui` command binds only to local/Tailscale
+  interfaces; it never binds to `0.0.0.0`.
 
 See [`docs/safety-model.md`](docs/safety-model.md) for full safety assertions
 and evidence.
@@ -442,11 +543,13 @@ hlint src/ app/
 ```
 
 **Test coverage:** 223 tests across unit, property (QuickCheck), integration,
-golden, and edge-case suites.
+golden, and edge-case suites. Test modules cover every rule, every render
+format, simulation, permission analysis, baseline/diff, suppress, gate, hooks,
+LSP, and the UI server.
 
-**Code quality:** All source compiles warning-free under GHC's strictest
-practical warning set (`-Wall -Wcompat` and ten additional flags). All file
-I/O is wrapped with `Control.Exception.try`.
+**Code quality:** All source compiles warning-free under `-Wall -Wcompat` plus
+ten additional GHC warning flags. All file I/O is wrapped with
+`Control.Exception.try`. No partial functions.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full development guidelines.
 
@@ -456,6 +559,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full development guidelines.
 
 | Document | Description |
 |----------|-------------|
+| [`docs/architecture.md`](docs/architecture.md) | Module dependency graph and design rationale |
 | [`docs/quickstart.md`](docs/quickstart.md) | Step-by-step getting started guide |
 | [`docs/operator-guide.md`](docs/operator-guide.md) | Full operator reference |
 | [`docs/edition-comparison.md`](docs/edition-comparison.md) | Edition feature matrix and decision tree |
@@ -463,6 +567,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full development guidelines.
 | [`docs/faq.md`](docs/faq.md) | Frequently asked questions |
 | [`docs/output-examples.md`](docs/output-examples.md) | Example output for all formats |
 | [`docs/remediation-philosophy.md`](docs/remediation-philosophy.md) | How remediation plans are generated |
+| [`docs/deployment-guide.md`](docs/deployment-guide.md) | Deployment and packaging reference |
 
 ---
 
@@ -473,6 +578,7 @@ Each release includes:
 - **SHA-256 checksums** — `SHA256SUMS-4.0.0.txt`
 - **CycloneDX SBOM** — `sbom-4.0.0.json`
 - **Linux tarball, .deb, and .rpm**
+- **Windows binary (zip)**
 
 ```bash
 sha256sum -c SHA256SUMS-4.0.0.txt
@@ -483,24 +589,29 @@ python3 -m json.tool sbom-4.0.0.json
 
 ## Shell Completions
 
-`orchestrator` uses `optparse-applicative`, which provides built-in completion script generation.
+`orchestrator` uses `optparse-applicative`, which provides built-in completion
+script generation.
 
 **Bash:**
 ```bash
-orchestrator --bash-completion-script orchestrator > ~/.local/share/bash-completion/completions/orchestrator
+orchestrator --bash-completion-script orchestrator \
+  > ~/.local/share/bash-completion/completions/orchestrator
 ```
 
 **Zsh:**
 ```bash
-orchestrator --zsh-completion-script orchestrator > ~/.local/share/zsh/site-functions/_orchestrator
+orchestrator --zsh-completion-script orchestrator \
+  > ~/.local/share/zsh/site-functions/_orchestrator
 ```
 
 **Fish:**
 ```bash
-orchestrator --fish-completion-script orchestrator > ~/.config/fish/completions/orchestrator.fish
+orchestrator --fish-completion-script orchestrator \
+  > ~/.config/fish/completions/orchestrator.fish
 ```
 
-Pre-generated completion scripts are included in each release archive under `completions/`.
+Pre-generated completion scripts are included in each release archive under
+`completions/`.
 
 ---
 
