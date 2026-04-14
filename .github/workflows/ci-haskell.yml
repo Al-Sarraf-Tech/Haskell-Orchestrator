@@ -54,7 +54,7 @@ jobs:
           if ! command -v ormolu &>/dev/null; then
             mkdir -p "$HOME/.local/bin"
             curl -fsSL "https://github.com/tweag/ormolu/releases/download/0.8.0.2/ormolu-x86_64-linux.zip" -o /tmp/ormolu.zip
-            python3 -m zipfile -e /tmp/ormolu.zip "$HOME/.local/bin"
+            perl -e 'use IO::Uncompress::Unzip qw(unzip $UnzipError); unzip("/tmp/ormolu.zip" => "$ENV{HOME}/.local/bin/ormolu") or die $UnzipError'
             chmod +x "$HOME/.local/bin/ormolu"
             rm -f /tmp/ormolu.zip
             echo "$HOME/.local/bin" >> "$GITHUB_PATH"
