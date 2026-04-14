@@ -52,9 +52,12 @@ jobs:
       - name: Install ormolu
         run: |
           if ! command -v ormolu &>/dev/null; then
-            ORMOLU_VERSION="0.7.7.0"
-            curl -fsSL "https://github.com/tweag/ormolu/releases/download/${ORMOLU_VERSION}/ormolu-x86_64-linux.gz" | gunzip > /usr/local/bin/ormolu
-            chmod +x /usr/local/bin/ormolu
+            mkdir -p "$HOME/.local/bin"
+            curl -fsSL "https://github.com/tweag/ormolu/releases/download/0.8.0.2/ormolu-x86_64-linux.zip" -o /tmp/ormolu.zip
+            unzip -qo /tmp/ormolu.zip -d "$HOME/.local/bin"
+            chmod +x "$HOME/.local/bin/ormolu"
+            rm -f /tmp/ormolu.zip
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           fi
       - name: Check formatting (ormolu)
         run: ormolu --mode check $(find src app test -name '*.hs')
