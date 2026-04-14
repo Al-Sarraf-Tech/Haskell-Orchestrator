@@ -52,7 +52,9 @@ jobs:
       - name: Install ormolu
         run: |
           if ! command -v ormolu &>/dev/null; then
-            cabal install ormolu --install-method=copy --installdir=/usr/local/bin
+            ORMOLU_VERSION="0.7.7.0"
+            curl -fsSL "https://github.com/tweag/ormolu/releases/download/${ORMOLU_VERSION}/ormolu-x86_64-linux.gz" | gunzip > /usr/local/bin/ormolu
+            chmod +x /usr/local/bin/ormolu
           fi
       - name: Check formatting (ormolu)
         run: ormolu --mode check $(find src app test -name '*.hs')
