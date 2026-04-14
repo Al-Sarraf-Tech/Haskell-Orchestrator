@@ -49,6 +49,11 @@ jobs:
       - name: Update package index
         run: cabal update
 
+      - name: Install ormolu
+        run: |
+          if ! command -v ormolu &>/dev/null; then
+            cabal install ormolu --install-method=copy --installdir=/usr/local/bin
+          fi
       - name: Check formatting (ormolu)
         run: ormolu --mode check $(find src app test -name '*.hs')
 
