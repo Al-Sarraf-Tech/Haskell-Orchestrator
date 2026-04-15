@@ -2,6 +2,7 @@ module Main (main) where
 
 import CLI (Command (..), Options (..), OutputMode (..), parseOptions)
 import Control.Concurrent (threadDelay)
+import Control.Monad (void, when)
 import Data.IORef (newIORef, readIORef, writeIORef)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, mapMaybe)
@@ -86,7 +87,7 @@ runScan opts path
   | optWatch opts = do
       let action = runScanOnce opts path
       watchLoop action (path ++ "/.github/workflows")
-  | otherwise = runScanOnce opts path >> pure ()
+  | otherwise = void (runScanOnce opts path)
 
 runScanOnce :: Options -> FilePath -> IO ExitCode
 runScanOnce opts path = do
@@ -135,12 +136,11 @@ watchLoop action dir = do
         threadDelay 2000000
         currentTimes <- snapshotTimes dir
         lastTimes <- readIORef lastTimesRef
-        if currentTimes /= lastTimes
-          then do
+        when (currentTimes /= lastTimes)
+          $ do
             TIO.putStrLn "\n--- Changes detected, re-scanning... ---"
             _ <- action
             writeIORef lastTimesRef currentTimes
-          else pure ()
         loop
   loop
 

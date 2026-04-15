@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
 
@@ -64,7 +64,7 @@ jobs:
           echo "CABAL_DIR=$cabalDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Cache Cabal
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cabal/packages
@@ -217,7 +217,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Setup Haskell paths
@@ -253,7 +253,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
 
@@ -374,7 +374,7 @@ jobs:
       packages: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
 

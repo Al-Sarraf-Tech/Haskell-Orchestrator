@@ -69,7 +69,7 @@ detectDuplicateIds rules =
     ruleId ra == ruleId rb
   ]
   where
-    indexed xs = zip [(0 :: Int) ..] xs
+    indexed = zip [(0 :: Int) ..]
 
 -- | Known pairs of rule IDs with established conflict relationships.
 detectKnownPairs :: [PolicyRule] -> [RuleConflict]
@@ -148,7 +148,7 @@ detectSameCategoryConflicts rules =
     isConflicting ra rb
   ]
   where
-    indexed xs = zip [(0 :: Int) ..] xs
+    indexed = zip [(0 :: Int) ..]
 
     sharedTags :: PolicyRule -> PolicyRule -> [RuleTag]
     sharedTags ra rb = filter (`elem` ruleTags rb) (ruleTags ra)

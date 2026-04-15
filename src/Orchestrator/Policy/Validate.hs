@@ -63,7 +63,7 @@ checkDuplicateRuleIds pack =
   | rid <- duplicates (map ruleId (packRules pack))
   ]
   where
-    duplicates xs = map head . filter ((> 1) . length) . group . sort $ xs
+    duplicates = map head . filter ((> 1) . length) . group . sort
 
 -- | Each rule must have non-empty ID, name, and description.
 checkRuleFields :: PolicyPack -> [ValidationIssue]

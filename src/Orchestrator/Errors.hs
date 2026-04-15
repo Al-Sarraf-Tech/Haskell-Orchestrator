@@ -6,6 +6,7 @@ module Orchestrator.Errors
   )
 where
 
+import Data.Char (isDigit)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Orchestrator.Types (OrchestratorError (..))
@@ -127,7 +128,7 @@ extractLine msg =
         [] -> Nothing
 
 isDigitChar :: Char -> Bool
-isDigitChar c = c >= '0' && c <= '9'
+isDigitChar = isDigit
 
 -- | Remove leading "line N:" prefix from messages if present.
 stripLinePrefix :: Text -> Text
