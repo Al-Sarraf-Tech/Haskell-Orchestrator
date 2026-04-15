@@ -30,9 +30,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set CABAL_DIR
         run: echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
+        shell: bash
 
       - name: Cache Cabal
         uses: actions/cache@v4
@@ -48,8 +51,10 @@ jobs:
 
       - name: Update package index
         run: cabal update
+        shell: bash
 
       - name: Install ormolu
+        shell: bash
         run: |
           if ! command -v ormolu &>/dev/null; then
             mkdir -p "$HOME/.local/bin"
@@ -62,22 +67,28 @@ jobs:
       - name: Check formatting (ormolu)
         continue-on-error: true
         run: ormolu --mode check $(find src app test -name '*.hs')
+        shell: bash
 
       - name: Build
         run: cabal build all
+        shell: bash
 
       - name: Test
         run: cabal test all --test-show-details=direct
+        shell: bash
 
       - name: Test with coverage
+        shell: bash
         run: |
           cabal test all --enable-coverage --test-show-details=direct
           echo "Coverage report generated"
 
       - name: Build with HIE files for weeder
         run: cabal build all --ghc-options="-fwrite-ide-info -hiedir=.hie"
+        shell: bash
 
       - name: Run weeder (dead code detection)
+        shell: bash
         run: |
           if command -v weeder >/dev/null 2>&1; then
             weeder --hie-directory .hie --hie-file-extension .hie || echo "weeder found issues (non-blocking)"
@@ -86,6 +97,7 @@ jobs:
           fi
 
       - name: Static analysis (stan)
+        shell: bash
         run: |
           if command -v stan >/dev/null 2>&1; then
             stan --hiedir=.hie report || echo "stan found issues (non-blocking)"
@@ -94,6 +106,7 @@ jobs:
           fi
 
       - name: Orchestrator self-scan (SARIF)
+        shell: bash
         run: |
           if command -v orchestrator >/dev/null 2>&1; then
             orchestrator scan .github/workflows/ --sarif > orchestrator-results.sarif 2>/dev/null || true
@@ -112,6 +125,7 @@ jobs:
 
       - name: Generate Haddock docs
         run: cabal haddock all --haddock-html 2>&1 | tail -5
+        shell: bash
 
   lint:
     name: Lint
@@ -122,12 +136,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: HLint
         env:
           LANG: C.UTF-8
           LC_ALL: C.UTF-8
         run: hlint src/ app/ 2>&1 | cat
+        shell: bash
 
   capability-check:
     name: Capability Contract Check
@@ -138,8 +155,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Verify no Business/Enterprise module imports
+        shell: bash
         run: |
           if grep -rI --include='*.hs' 'OrchestratorBusiness\|OrchestratorEnterprise' src/ app/ 2>/dev/null; then
             echo "::error::LEAK DETECTED: Source imports Business or Enterprise modules"
@@ -178,7 +198,9 @@ jobs:
 
       - name: Update package index
         run: cabal update
+        shell: bash
 
       - name: Run Orchestrator against own workflows
+        shell: bash
         run: |
           cabal run orchestrator -- scan .github/workflows/ --fail-on error

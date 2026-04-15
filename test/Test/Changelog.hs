@@ -5,25 +5,51 @@ import Data.Text qualified as T
 import Orchestrator.Changelog
 import Orchestrator.Model
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (testCase, assertBool, (@?=))
+import Test.Tasty.HUnit (assertBool, testCase, (@?=))
 
 ------------------------------------------------------------------------
 -- Helpers
 ------------------------------------------------------------------------
 
 mkWf :: [Job] -> Workflow
-mkWf jobs = Workflow "Test" "test.yml"
-  [TriggerEvents [TriggerEvent "push" ["main"] [] []]]
-  jobs Nothing Nothing Map.empty
+mkWf jobs =
+  Workflow
+    "Test"
+    "test.yml"
+    [TriggerEvents [TriggerEvent "push" ["main"] [] []]]
+    jobs
+    Nothing
+    Nothing
+    Map.empty
 
 mkWfNamed :: T.Text -> [Job] -> Workflow
-mkWfNamed nm jobs = Workflow nm "test.yml"
-  [TriggerEvents [TriggerEvent "push" ["main"] [] []]]
-  jobs Nothing Nothing Map.empty
+mkWfNamed nm jobs =
+  Workflow
+    nm
+    "test.yml"
+    [TriggerEvents [TriggerEvent "push" ["main"] [] []]]
+    jobs
+    Nothing
+    Nothing
+    Map.empty
 
 mkJob :: T.Text -> [Step] -> Job
-mkJob jid steps = Job jid (Just jid) (StandardRunner "ubuntu-latest")
-  steps Nothing [] Nothing Map.empty Nothing (Just 30) Nothing False Nothing False
+mkJob jid steps =
+  Job
+    jid
+    (Just jid)
+    (StandardRunner "ubuntu-latest")
+    steps
+    Nothing
+    []
+    Nothing
+    Map.empty
+    Nothing
+    (Just 30)
+    Nothing
+    False
+    Nothing
+    False
 
 mkStep :: T.Text -> Step
 mkStep nm = Step (Just nm) (Just nm) Nothing (Just "echo hi") Map.empty Map.empty Nothing Nothing
@@ -33,18 +59,20 @@ mkStep nm = Step (Just nm) (Just nm) Nothing (Just "echo hi") Map.empty Map.empt
 ------------------------------------------------------------------------
 
 tests :: TestTree
-tests = testGroup "Changelog"
-  [ testDiffIdentical
-  , testDiffName
-  , testDiffJobAdded
-  , testDiffJobRemoved
-  , testDiffStepAdded
-  , testDiffStepRemoved
-  , testDiffRunner
-  , testDiffTrigger
-  , testRenderEmpty
-  , testRenderNonEmpty
-  ]
+tests =
+  testGroup
+    "Changelog"
+    [ testDiffIdentical,
+      testDiffName,
+      testDiffJobAdded,
+      testDiffJobRemoved,
+      testDiffStepAdded,
+      testDiffStepRemoved,
+      testDiffRunner,
+      testDiffTrigger,
+      testRenderEmpty,
+      testRenderNonEmpty
+    ]
 
 -- | Identical workflows → no changes
 testDiffIdentical :: TestTree
@@ -98,9 +126,23 @@ testDiffStepRemoved = testCase "diffWorkflows/step-removed" $ do
 -- | Runner change detected as Modified
 testDiffRunner :: TestTree
 testDiffRunner = testCase "diffWorkflows/runner-change-detected" $ do
-  let oldJob = Job "build" (Just "build") (StandardRunner "ubuntu-20.04")
-                [] Nothing [] Nothing Map.empty Nothing (Just 30) Nothing False Nothing False
-      newJob = oldJob { jobRunsOn = StandardRunner "ubuntu-latest" }
+  let oldJob =
+        Job
+          "build"
+          (Just "build")
+          (StandardRunner "ubuntu-20.04")
+          []
+          Nothing
+          []
+          Nothing
+          Map.empty
+          Nothing
+          (Just 30)
+          Nothing
+          False
+          Nothing
+          False
+      newJob = oldJob {jobRunsOn = StandardRunner "ubuntu-latest"}
       old = mkWf [oldJob]
       new = mkWf [newJob]
       entries = diffWorkflows old new
@@ -110,11 +152,17 @@ testDiffRunner = testCase "diffWorkflows/runner-change-detected" $ do
 testDiffTrigger :: TestTree
 testDiffTrigger = testCase "diffWorkflows/trigger-added" $ do
   let old = mkWf []
-      new = Workflow "Test" "test.yml"
-              [ TriggerEvents [TriggerEvent "push" ["main"] [] []]
-              , TriggerDispatch
-              ]
-              [] Nothing Nothing Map.empty
+      new =
+        Workflow
+          "Test"
+          "test.yml"
+          [ TriggerEvents [TriggerEvent "push" ["main"] [] []],
+            TriggerDispatch
+          ]
+          []
+          Nothing
+          Nothing
+          Map.empty
       entries = diffWorkflows old new
   assertBool "trigger-added entry present" (any (\e -> ceChangeType e == Added) entries)
 
@@ -127,10 +175,11 @@ testRenderEmpty = testCase "renderChangelog/empty-returns-no-changes" $ do
 -- | renderChangelog with entries contains sections
 testRenderNonEmpty :: TestTree
 testRenderNonEmpty = testCase "renderChangelog/non-empty-has-sections" $ do
-  let entries = [ ChangeEntry Added "Job added: build" "test.yml"
-                , ChangeEntry Removed "Job removed: lint" "test.yml"
-                , ChangeEntry Modified "Runner changed" "test.yml"
-                ]
+  let entries =
+        [ ChangeEntry Added "Job added: build" "test.yml",
+          ChangeEntry Removed "Job removed: lint" "test.yml",
+          ChangeEntry Modified "Runner changed" "test.yml"
+        ]
       txt = renderChangelog entries
   assertBool "contains Added section" ("Added" `T.isInfixOf` txt)
   assertBool "contains Removed section" ("Removed" `T.isInfixOf` txt)

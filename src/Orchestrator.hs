@@ -1,34 +1,48 @@
 -- | Top-level re-export module for the Orchestrator library.
 module Orchestrator
   ( -- * Core types
-    module Orchestrator.Types
+    module Orchestrator.Types,
+
     -- * Domain model
-  , module Orchestrator.Model
+    module Orchestrator.Model,
+
     -- * Parsing
-  , module Orchestrator.Parser
+    module Orchestrator.Parser,
+
     -- * Policy engine
-  , module Orchestrator.Policy
+    module Orchestrator.Policy,
+
     -- * Extended policy pack (all 21 rules)
-  , module Orchestrator.Policy.Extended
+    module Orchestrator.Policy.Extended,
+
     -- * Structural validation
-  , module Orchestrator.Validate
+    module Orchestrator.Validate,
+
     -- * Diff and remediation
-  , module Orchestrator.Diff
+    module Orchestrator.Diff,
+
     -- * Output rendering
-  , module Orchestrator.Render
+    module Orchestrator.Render,
+
     -- * Configuration
-  , module Orchestrator.Config
+    module Orchestrator.Config,
+
     -- * Scanning
-  , module Orchestrator.Scan
+    module Orchestrator.Scan,
+
     -- * Demo
-  , module Orchestrator.Demo
+    module Orchestrator.Demo,
+
     -- * Graph analysis
-  , module Orchestrator.Graph
+    module Orchestrator.Graph,
+
     -- * Baseline
-  , module Orchestrator.Baseline
+    module Orchestrator.Baseline,
+
     -- * Auto-fix
-  , module Orchestrator.Fix
-  ) where
+    module Orchestrator.Fix,
+  )
+where
 
 import Orchestrator.Baseline
 import Orchestrator.Config

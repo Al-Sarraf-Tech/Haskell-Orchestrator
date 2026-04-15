@@ -29,9 +29,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set CABAL_DIR
         run: echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
+        shell: bash
 
       - name: Cache Cabal
         uses: actions/cache@v4
@@ -46,17 +49,21 @@ jobs:
 
       - name: Update index
         run: cabal update
+        shell: bash
 
       - name: Generate freeze file
         run: cabal freeze
+        shell: bash
 
       - name: Check for known vulnerabilities
+        shell: bash
         run: |
           echo "Checking dependencies for known issues..."
           cabal outdated || true
           echo "Dependency audit complete."
 
       - name: Check Haskell advisories
+        shell: bash
         run: |
           if command -v cabal-audit >/dev/null 2>&1; then
             cabal-audit || echo "Advisory check found issues (review required)"
@@ -77,9 +84,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Gitleaks scan
         run: gitleaks detect --source=. --no-banner --exit-code=1
+        shell: bash
 
   attribution-check:
     name: Attribution Check
@@ -90,8 +99,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Verify no prohibited content
+        shell: bash
         run: |
           T3="Anthro"
           T4="pic"

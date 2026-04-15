@@ -41,6 +41,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Haskell paths (Unix)
         if: runner.os != 'Windows'
@@ -93,6 +95,7 @@ jobs:
           cabal install exe:orchestrator -O2 --install-method=copy --overwrite-policy=always --installdir=_bin
 
       - name: Run tests
+        shell: bash
         run: cabal test all --test-show-details=direct
 
       - name: Package artifact (Unix)
@@ -147,6 +150,13 @@ jobs:
           bash packaging/rpm/build-rpm.sh "_bin/orchestrator" "$VERSION" || echo "::warning::RPM build skipped (rpmbuild not available)"
           cp *.rpm staging/ 2>/dev/null || true
 
+      - name: Generate source tarball
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          git archive --format=tar.gz --prefix="haskell-orchestrator-${VERSION}/" HEAD > "staging/haskell-orchestrator-${VERSION}-source.tar.gz"
+
       - name: Generate shell completions (Unix)
         if: runner.os != 'Windows'
         shell: bash
@@ -200,6 +210,7 @@ jobs:
     name: Publish API docs
     needs: [repo-guard]
     runs-on: [self-hosted, haskell-slim]
+    timeout-minutes: 15
     permissions:
       pages: write
       id-token: write
@@ -208,6 +219,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Setup Haskell paths
         shell: bash
         run: |
@@ -215,8 +228,10 @@ jobs:
           echo "$HOME/.cabal/bin" >> "$GITHUB_PATH"
           echo "/opt/haskell/.ghcup/bin" >> "$GITHUB_PATH"
       - name: Generate Haddock
+        shell: bash
         run: cabal haddock all --haddock-html --haddock-hyperlink-source
       - name: Prepare pages content
+        shell: bash
         run: |
           mkdir -p _site
           cp -r $(find dist-newstyle -path '*/doc/html/*' -type d | head -1)/* _site/ || true
@@ -240,6 +255,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -249,6 +266,7 @@ jobs:
 
       - name: Prepare release assets
         id: prep
+        shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p release
@@ -259,6 +277,7 @@ jobs:
           ls -la
 
       - name: Generate SBOM
+        shell: bash
         run: |
           VERSION="${{ steps.prep.outputs.version }}"
           cabal update || true
@@ -311,6 +330,7 @@ jobs:
             | Linux (.deb) | amd64 | `haskell-orchestrator_${{ steps.prep.outputs.version }}_amd64.deb` |
             | Linux (.rpm) | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-1.x86_64.rpm` (if available) |
             | Windows | x86_64 | `haskell-orchestrator-${{ steps.prep.outputs.version }}-windows-x86_64.zip` |
+            | Source | — | `haskell-orchestrator-${{ steps.prep.outputs.version }}-source.tar.gz` |
 
             ### Verification
 
@@ -335,24 +355,30 @@ jobs:
     name: Build and push container
     needs: [repo-guard, build]
     runs-on: [self-hosted, haskell-slim]
+    timeout-minutes: 15
     permissions:
       packages: write
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Log in to GHCR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: echo "${GITHUB_TOKEN}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build container image
+        shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           podman build -f Containerfile -t ghcr.io/al-sarraf-tech/orchestrator:${VERSION} .
           podman tag ghcr.io/al-sarraf-tech/orchestrator:${VERSION} ghcr.io/al-sarraf-tech/orchestrator:latest
 
       - name: Push to GHCR
+        shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           podman push ghcr.io/al-sarraf-tech/orchestrator:${VERSION}

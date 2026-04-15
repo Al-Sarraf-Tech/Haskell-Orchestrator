@@ -8,7 +8,7 @@ evaluates configurable policy rules, and generates deterministic remediation
 plans — without modifying any files.
 
 - **Edition:** Community (MIT license)
-- **Version:** 3.0.3
+- **Version:** 4.0.0
 - **Language:** Haskell (GHC2021)
 - **Compiler:** GHC 9.6.7
 - **Build tool:** Cabal 3.10+
@@ -18,7 +18,7 @@ plans — without modifying any files.
 
 ```bash
 cabal build all                              # build library + executable + tests
-cabal test all --test-show-details=direct    # run all 115 tests
+cabal test all --test-show-details=direct    # run all 599 tests
 cabal clean && cabal build all --ghc-options="-Werror"  # zero-warning gate
 ormolu --mode inplace $(find src app test -name '*.hs')  # format
 ```

@@ -3,15 +3,16 @@
 -- Parses raw YAML into the typed 'Workflow' domain model defined in
 -- "Orchestrator.Model".  Produces structured errors on parse failure.
 module Orchestrator.Parser
-  ( parseWorkflow
-  , parseWorkflowFile
-  , parseWorkflowBS
-  ) where
+  ( parseWorkflow,
+    parseWorkflowFile,
+    parseWorkflowBS,
+  )
+where
 
+import Control.Exception (SomeException, try)
 import Data.Aeson (Object, Value (..))
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KM
-import Control.Exception (SomeException, try)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.Map.Strict qualified as Map
@@ -46,15 +47,16 @@ parseWorkflow fp (Object obj) = do
   let perms = parsePermissions =<< KM.lookup "permissions" obj
   let conc = parseConcurrency =<< KM.lookup "concurrency" obj
   let env = extractEnvMap "env" obj
-  Right Workflow
-    { wfName = name
-    , wfFileName = fp
-    , wfTriggers = triggers
-    , wfJobs = jobs
-    , wfPermissions = perms
-    , wfConcurrency = conc
-    , wfEnv = env
-    }
+  Right
+    Workflow
+      { wfName = name,
+        wfFileName = fp,
+        wfTriggers = triggers,
+        wfJobs = jobs,
+        wfPermissions = perms,
+        wfConcurrency = conc,
+        wfEnv = env
+      }
 parseWorkflow fp _ = Left $ ParseError fp "Workflow must be a YAML mapping"
 
 orDefault :: Maybe Text -> Text -> Text
@@ -65,8 +67,8 @@ extractText key obj =
   case KM.lookup (Key.fromText key) obj of
     Just (String t) -> Just t
     Just (Number n) -> Just (T.pack $ show n)
-    Just (Bool b)   -> Just (if b then "true" else "false")
-    _               -> Nothing
+    Just (Bool b) -> Just (if b then "true" else "false")
+    _ -> Nothing
 
 extractEnvMap :: Text -> Object -> EnvMap
 extractEnvMap key obj =
@@ -81,8 +83,8 @@ extractEnvMap key obj =
 toText :: Value -> Text
 toText (String t) = t
 toText (Number n) = T.pack $ show n
-toText (Bool b)   = if b then "true" else "false"
-toText _          = ""
+toText (Bool b) = if b then "true" else "false"
+toText _ = ""
 
 parseTriggers :: FilePath -> Object -> Either OrchestratorError [WorkflowTrigger]
 parseTriggers fp obj =
@@ -100,25 +102,32 @@ parseTriggerValue (Object obj) =
   let events = mapMaybe parseEventEntry (KM.toList obj)
       scheds = case KM.lookup "schedule" obj of
         Just (Array arr) ->
-          [ TriggerCron (fromMaybe "" $ extractText "cron"
-              (case v of Object o -> o; _ -> KM.empty))
+          [ TriggerCron
+              ( fromMaybe "" $
+                  extractText
+                    "cron"
+                    (case v of Object o -> o; _ -> KM.empty)
+              )
           | v <- foldr (:) [] arr
           ]
         _ -> []
       dispatch = [TriggerDispatch | KM.member "workflow_dispatch" obj]
-  in  [TriggerEvents events | not (null events)]
-      ++ scheds ++ dispatch
+   in [TriggerEvents events | not (null events)]
+        ++ scheds
+        ++ dispatch
 parseTriggerValue _ = []
 
 parseEventEntry :: (Key.Key, Value) -> Maybe TriggerEvent
 parseEventEntry (k, _)
   | Key.toText k `elem` ["schedule", "workflow_dispatch"] = Nothing
-parseEventEntry (k, Object details) = Just TriggerEvent
-  { triggerName = Key.toText k
-  , triggerBranches = extractStringList "branches" details
-  , triggerPaths = extractStringList "paths" details
-  , triggerTags = extractStringList "tags" details
-  }
+parseEventEntry (k, Object details) =
+  Just
+    TriggerEvent
+      { triggerName = Key.toText k,
+        triggerBranches = extractStringList "branches" details,
+        triggerPaths = extractStringList "paths" details,
+        triggerTags = extractStringList "tags" details
+      }
 parseEventEntry (k, Null) = Just $ TriggerEvent (Key.toText k) [] [] []
 parseEventEntry (k, _) = Just $ TriggerEvent (Key.toText k) [] [] []
 
@@ -126,8 +135,8 @@ extractStringList :: Text -> Object -> [Text]
 extractStringList key obj =
   case KM.lookup (Key.fromText key) obj of
     Just (Array arr) -> [toText v | v <- foldr (:) [] arr]
-    Just (String s)  -> [s]
-    _                -> []
+    Just (String s) -> [s]
+    _ -> []
 
 parseJobs :: FilePath -> Object -> Either OrchestratorError [Job]
 parseJobs fp obj =
@@ -140,24 +149,24 @@ parseJobs fp obj =
 parseJob :: Text -> Value -> Job
 parseJob jid (Object obj) =
   let (ff, inclOnly) = parseStrategy $ KM.lookup "strategy" obj
-  in Job
-  { jobId = jid
-  , jobName = extractText "name" obj
-  , jobRunsOn = parseRunner $ KM.lookup "runs-on" obj
-  , jobSteps = parseSteps $ KM.lookup "steps" obj
-  , jobPermissions = parsePermissions =<< KM.lookup "permissions" obj
-  , jobNeeds = extractStringList "needs" obj
-  , jobConcurrency = parseConcurrency =<< KM.lookup "concurrency" obj
-  , jobEnv = extractEnvMap "env" obj
-  , jobIf = extractText "if" obj
-  , jobTimeoutMin = case KM.lookup "timeout-minutes" obj of
-      Just (Number n) -> Just (round n)
-      _               -> Nothing
-  , jobEnvironment = parseEnvironment $ KM.lookup "environment" obj
-  , jobEnvironmentUrl = parseEnvironmentUrl $ KM.lookup "environment" obj
-  , jobFailFast = ff
-  , jobMatrixIncludeOnly = inclOnly
-  }
+   in Job
+        { jobId = jid,
+          jobName = extractText "name" obj,
+          jobRunsOn = parseRunner $ KM.lookup "runs-on" obj,
+          jobSteps = parseSteps $ KM.lookup "steps" obj,
+          jobPermissions = parsePermissions =<< KM.lookup "permissions" obj,
+          jobNeeds = extractStringList "needs" obj,
+          jobConcurrency = parseConcurrency =<< KM.lookup "concurrency" obj,
+          jobEnv = extractEnvMap "env" obj,
+          jobIf = extractText "if" obj,
+          jobTimeoutMin = case KM.lookup "timeout-minutes" obj of
+            Just (Number n) -> Just (round n)
+            _ -> Nothing,
+          jobEnvironment = parseEnvironment $ KM.lookup "environment" obj,
+          jobEnvironmentUrl = parseEnvironmentUrl $ KM.lookup "environment" obj,
+          jobFailFast = ff,
+          jobMatrixIncludeOnly = inclOnly
+        }
 parseJob jid _ = Job jid Nothing (StandardRunner "ubuntu-latest") [] Nothing [] Nothing Map.empty Nothing Nothing Nothing False Nothing False
 
 -- | Parse the 'environment:' field. Handles both string form
@@ -180,30 +189,36 @@ parseStrategy :: Maybe Value -> (Maybe Bool, Bool)
 parseStrategy (Just (Object strat)) =
   let ff = case KM.lookup "fail-fast" strat of
         Just (Bool b) -> Just b
-        _             -> Nothing
+        _ -> Nothing
       inclOnly = case KM.lookup "matrix" strat of
         Just (Object mat) ->
           let keys = map Key.toText $ KM.keys mat
-          in keys == ["include"]
+           in keys == ["include"]
         _ -> False
-  in (ff, inclOnly)
+   in (ff, inclOnly)
 parseStrategy _ = (Nothing, False)
 
 parseRunner :: Maybe Value -> RunnerSpec
 parseRunner (Just (String s))
   | "${{" `T.isPrefixOf` s = MatrixRunner s
-  | s `elem` knownRunners  = StandardRunner s
-  | otherwise              = CustomLabel s
+  | s `elem` knownRunners = StandardRunner s
+  | otherwise = CustomLabel s
 parseRunner (Just (Array arr)) =
   let labels = [toText v | v <- foldr (:) [] arr]
-  in CustomLabel (T.intercalate ", " labels)
+   in CustomLabel (T.intercalate ", " labels)
 parseRunner _ = StandardRunner "ubuntu-latest"
 
 knownRunners :: [Text]
 knownRunners =
-  [ "ubuntu-latest", "ubuntu-22.04", "ubuntu-24.04"
-  , "macos-latest", "macos-14", "macos-15"
-  , "windows-latest", "windows-2022", "windows-2025"
+  [ "ubuntu-latest",
+    "ubuntu-22.04",
+    "ubuntu-24.04",
+    "macos-latest",
+    "macos-14",
+    "macos-15",
+    "windows-latest",
+    "windows-2022",
+    "windows-2025"
   ]
 
 parseSteps :: Maybe Value -> [Step]
@@ -211,41 +226,46 @@ parseSteps (Just (Array arr)) = map parseStep (foldr (:) [] arr)
 parseSteps _ = []
 
 parseStep :: Value -> Step
-parseStep (Object obj) = Step
-  { stepId   = extractText "id" obj
-  , stepName = extractText "name" obj
-  , stepUses = extractText "uses" obj
-  , stepRun  = extractText "run" obj
-  , stepWith = extractEnvMap "with" obj
-  , stepEnv  = extractEnvMap "env" obj
-  , stepIf   = extractText "if" obj
-  , stepShell = extractText "shell" obj
-  }
+parseStep (Object obj) =
+  Step
+    { stepId = extractText "id" obj,
+      stepName = extractText "name" obj,
+      stepUses = extractText "uses" obj,
+      stepRun = extractText "run" obj,
+      stepWith = extractEnvMap "with" obj,
+      stepEnv = extractEnvMap "env" obj,
+      stepIf = extractText "if" obj,
+      stepShell = extractText "shell" obj
+    }
 parseStep _ = Step Nothing Nothing Nothing Nothing Map.empty Map.empty Nothing Nothing
 
 parsePermissions :: Value -> Maybe Permissions
-parsePermissions (String "read-all")  = Just $ PermissionsAll PermRead
+parsePermissions (String "read-all") = Just $ PermissionsAll PermRead
 parsePermissions (String "write-all") = Just $ PermissionsAll PermWrite
-parsePermissions (Object obj) = Just $ PermissionsMap $
-  Map.fromList
-    [ (Key.toText k, parsePermLevel v)
-    | (k, v) <- KM.toList obj
-    ]
+parsePermissions (Object obj) =
+  Just $
+    PermissionsMap $
+      Map.fromList
+        [ (Key.toText k, parsePermLevel v)
+        | (k, v) <- KM.toList obj
+        ]
 parsePermissions _ = Nothing
 
 parsePermLevel :: Value -> PermissionLevel
-parsePermLevel (String "read")  = PermRead
+parsePermLevel (String "read") = PermRead
 parsePermLevel (String "write") = PermWrite
-parsePermLevel (String "none")  = PermNone
-parsePermLevel _                = PermRead
+parsePermLevel (String "none") = PermNone
+parsePermLevel _ = PermRead
 
 parseConcurrency :: Value -> Maybe ConcurrencyConfig
 parseConcurrency (String s) = Just $ ConcurrencyConfig s False
-parseConcurrency (Object obj) = Just ConcurrencyConfig
-  { concGroup = fromMaybe "" $ extractText "group" obj
-  , concCancelInProgress =
-      case KM.lookup "cancel-in-progress" obj of
-        Just (Bool b) -> b
-        _             -> False
-  }
+parseConcurrency (Object obj) =
+  Just
+    ConcurrencyConfig
+      { concGroup = fromMaybe "" $ extractText "group" obj,
+        concCancelInProgress =
+          case KM.lookup "cancel-in-progress" obj of
+            Just (Bool b) -> b
+            _ -> False
+      }
 parseConcurrency _ = Nothing

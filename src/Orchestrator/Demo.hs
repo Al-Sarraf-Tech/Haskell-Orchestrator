@@ -4,12 +4,13 @@
 -- using entirely synthetic workflow data.  No external repositories are
 -- accessed.
 module Orchestrator.Demo
-  ( runDemo
-  , demoWorkflows
-  , goodWorkflow
-  , problematicWorkflow
-  , insecureWorkflow
-  ) where
+  ( runDemo,
+    demoWorkflows,
+    goodWorkflow,
+    problematicWorkflow,
+    insecureWorkflow,
+  )
+where
 
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
@@ -19,7 +20,7 @@ import Orchestrator.Model
 import Orchestrator.Policy (defaultPolicyPack, evaluatePolicies)
 import Orchestrator.Render (renderFindings, renderSummary)
 import Orchestrator.Types
-import Orchestrator.Validate (validateWorkflow, ValidationResult (..))
+import Orchestrator.Validate (ValidationResult (..), validateWorkflow)
 
 -- | Run the full demo, printing results to stdout.
 runDemo :: IO ()
@@ -74,117 +75,167 @@ demoWorkflows = [goodWorkflow, problematicWorkflow, insecureWorkflow]
 
 -- | A well-configured workflow that should produce minimal findings.
 goodWorkflow :: Workflow
-goodWorkflow = Workflow
-  { wfName = "CI"
-  , wfFileName = "demo/.github/workflows/ci.yml"
-  , wfTriggers =
-      [ TriggerEvents
-          [ TriggerEvent "push" ["main"] [] []
-          , TriggerEvent "pull_request" ["main"] [] []
-          ]
-      ]
-  , wfJobs =
-      [ Job
-          { jobId = "build-and-test"
-          , jobName = Just "Build and Test"
-          , jobRunsOn = StandardRunner "ubuntu-latest"
-          , jobSteps =
-              [ Step (Just "checkout") (Just "Checkout")
-                  (Just "actions/checkout@v4") Nothing Map.empty Map.empty Nothing Nothing
-              , Step Nothing (Just "Build")
-                  Nothing (Just "make build") Map.empty Map.empty Nothing Nothing
-              , Step Nothing (Just "Test")
-                  Nothing (Just "make test") Map.empty Map.empty Nothing Nothing
-              ]
-          , jobPermissions = Just (PermissionsMap (Map.fromList [("contents", PermRead)]))
-          , jobNeeds = []
-          , jobConcurrency = Nothing
-          , jobEnv = Map.empty
-          , jobIf = Nothing
-          , jobTimeoutMin = Just 30
-          , jobEnvironment = Nothing
-          , jobEnvironmentUrl = False
-          , jobFailFast = Nothing
-          , jobMatrixIncludeOnly = False
-          }
-      ]
-  , wfPermissions = Just (PermissionsMap (Map.fromList [("contents", PermRead)]))
-  , wfConcurrency = Just (ConcurrencyConfig "ci-${{ github.ref }}" True)
-  , wfEnv = Map.empty
-  }
+goodWorkflow =
+  Workflow
+    { wfName = "CI",
+      wfFileName = "demo/.github/workflows/ci.yml",
+      wfTriggers =
+        [ TriggerEvents
+            [ TriggerEvent "push" ["main"] [] [],
+              TriggerEvent "pull_request" ["main"] [] []
+            ]
+        ],
+      wfJobs =
+        [ Job
+            { jobId = "build-and-test",
+              jobName = Just "Build and Test",
+              jobRunsOn = StandardRunner "ubuntu-latest",
+              jobSteps =
+                [ Step
+                    (Just "checkout")
+                    (Just "Checkout")
+                    (Just "actions/checkout@v4")
+                    Nothing
+                    Map.empty
+                    Map.empty
+                    Nothing
+                    Nothing,
+                  Step
+                    Nothing
+                    (Just "Build")
+                    Nothing
+                    (Just "make build")
+                    Map.empty
+                    Map.empty
+                    Nothing
+                    Nothing,
+                  Step
+                    Nothing
+                    (Just "Test")
+                    Nothing
+                    (Just "make test")
+                    Map.empty
+                    Map.empty
+                    Nothing
+                    Nothing
+                ],
+              jobPermissions = Just (PermissionsMap (Map.fromList [("contents", PermRead)])),
+              jobNeeds = [],
+              jobConcurrency = Nothing,
+              jobEnv = Map.empty,
+              jobIf = Nothing,
+              jobTimeoutMin = Just 30,
+              jobEnvironment = Nothing,
+              jobEnvironmentUrl = False,
+              jobFailFast = Nothing,
+              jobMatrixIncludeOnly = False
+            }
+        ],
+      wfPermissions = Just (PermissionsMap (Map.fromList [("contents", PermRead)])),
+      wfConcurrency = Just (ConcurrencyConfig "ci-${{ github.ref }}" True),
+      wfEnv = Map.empty
+    }
 
 -- | A workflow with common problems (missing permissions, no timeout, etc.).
 problematicWorkflow :: Workflow
-problematicWorkflow = Workflow
-  { wfName = "Deploy"
-  , wfFileName = "demo/.github/workflows/deploy.yml"
-  , wfTriggers =
-      [ TriggerEvents
-          [ TriggerEvent "push" ["**"] [] []
-          , TriggerEvent "pull_request" [] [] []
-          ]
-      ]
-  , wfJobs =
-      [ Job
-          { jobId = "deployProd"
-          , jobName = Just "Deploy to Production"
-          , jobRunsOn = StandardRunner "ubuntu-latest"
-          , jobSteps =
-              [ Step Nothing (Just "Checkout")
-                  (Just "actions/checkout@v4") Nothing Map.empty Map.empty Nothing Nothing
-              , Step Nothing (Just "Deploy")
-                  (Just "third-party/deploy-action@v2") Nothing Map.empty Map.empty Nothing Nothing
-              ]
-          , jobPermissions = Nothing
-          , jobNeeds = []
-          , jobConcurrency = Nothing
-          , jobEnv = Map.empty
-          , jobIf = Nothing
-          , jobTimeoutMin = Nothing
-          , jobEnvironment = Nothing
-          , jobEnvironmentUrl = False
-          , jobFailFast = Nothing
-          , jobMatrixIncludeOnly = False
-          }
-      ]
-  , wfPermissions = Nothing
-  , wfConcurrency = Nothing
-  , wfEnv = Map.empty
-  }
+problematicWorkflow =
+  Workflow
+    { wfName = "Deploy",
+      wfFileName = "demo/.github/workflows/deploy.yml",
+      wfTriggers =
+        [ TriggerEvents
+            [ TriggerEvent "push" ["**"] [] [],
+              TriggerEvent "pull_request" [] [] []
+            ]
+        ],
+      wfJobs =
+        [ Job
+            { jobId = "deployProd",
+              jobName = Just "Deploy to Production",
+              jobRunsOn = StandardRunner "ubuntu-latest",
+              jobSteps =
+                [ Step
+                    Nothing
+                    (Just "Checkout")
+                    (Just "actions/checkout@v4")
+                    Nothing
+                    Map.empty
+                    Map.empty
+                    Nothing
+                    Nothing,
+                  Step
+                    Nothing
+                    (Just "Deploy")
+                    (Just "third-party/deploy-action@v2")
+                    Nothing
+                    Map.empty
+                    Map.empty
+                    Nothing
+                    Nothing
+                ],
+              jobPermissions = Nothing,
+              jobNeeds = [],
+              jobConcurrency = Nothing,
+              jobEnv = Map.empty,
+              jobIf = Nothing,
+              jobTimeoutMin = Nothing,
+              jobEnvironment = Nothing,
+              jobEnvironmentUrl = False,
+              jobFailFast = Nothing,
+              jobMatrixIncludeOnly = False
+            }
+        ],
+      wfPermissions = Nothing,
+      wfConcurrency = Nothing,
+      wfEnv = Map.empty
+    }
 
 -- | A workflow with security issues.
 insecureWorkflow :: Workflow
-insecureWorkflow = Workflow
-  { wfName = "Release"
-  , wfFileName = "demo/.github/workflows/release.yml"
-  , wfTriggers =
-      [ TriggerEvents [TriggerEvent "push" ["main"] ["v*"] []] ]
-  , wfJobs =
-      [ Job
-          { jobId = "release"
-          , jobName = Just "Create Release"
-          , jobRunsOn = StandardRunner "ubuntu-latest"
-          , jobSteps =
-              [ Step Nothing (Just "Checkout")
-                  (Just "actions/checkout@v4") Nothing Map.empty Map.empty Nothing Nothing
-              , Step Nothing (Just "Publish")
-                  Nothing
-                  (Just "echo \"Publishing with token: ${{ secrets.DEPLOY_TOKEN }}\"")
-                  Map.empty Map.empty Nothing Nothing
-              ]
-          , jobPermissions = Just (PermissionsAll PermWrite)
-          , jobNeeds = []
-          , jobConcurrency = Nothing
-          , jobEnv = Map.empty
-          , jobIf = Nothing
-          , jobTimeoutMin = Nothing
-          , jobEnvironment = Nothing
-          , jobEnvironmentUrl = False
-          , jobFailFast = Nothing
-          , jobMatrixIncludeOnly = False
-          }
-      ]
-  , wfPermissions = Just (PermissionsAll PermWrite)
-  , wfConcurrency = Nothing
-  , wfEnv = Map.empty
-  }
+insecureWorkflow =
+  Workflow
+    { wfName = "Release",
+      wfFileName = "demo/.github/workflows/release.yml",
+      wfTriggers =
+        [TriggerEvents [TriggerEvent "push" ["main"] ["v*"] []]],
+      wfJobs =
+        [ Job
+            { jobId = "release",
+              jobName = Just "Create Release",
+              jobRunsOn = StandardRunner "ubuntu-latest",
+              jobSteps =
+                [ Step
+                    Nothing
+                    (Just "Checkout")
+                    (Just "actions/checkout@v4")
+                    Nothing
+                    Map.empty
+                    Map.empty
+                    Nothing
+                    Nothing,
+                  Step
+                    Nothing
+                    (Just "Publish")
+                    Nothing
+                    (Just "echo \"Publishing with token: ${{ secrets.DEPLOY_TOKEN }}\"")
+                    Map.empty
+                    Map.empty
+                    Nothing
+                    Nothing
+                ],
+              jobPermissions = Just (PermissionsAll PermWrite),
+              jobNeeds = [],
+              jobConcurrency = Nothing,
+              jobEnv = Map.empty,
+              jobIf = Nothing,
+              jobTimeoutMin = Nothing,
+              jobEnvironment = Nothing,
+              jobEnvironmentUrl = False,
+              jobFailFast = Nothing,
+              jobMatrixIncludeOnly = False
+            }
+        ],
+      wfPermissions = Just (PermissionsAll PermWrite),
+      wfConcurrency = Nothing,
+      wfEnv = Map.empty
+    }

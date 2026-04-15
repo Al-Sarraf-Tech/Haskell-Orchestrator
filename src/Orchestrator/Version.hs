@@ -1,9 +1,10 @@
 -- | Single source of truth for version and edition strings.
 module Orchestrator.Version
-  ( orchestratorVersion
-  , orchestratorEdition
-  , userAgentString
-  ) where
+  ( orchestratorVersion,
+    orchestratorEdition,
+    userAgentString,
+  )
+where
 
 import Data.Text (Text)
 import Data.Text qualified as T

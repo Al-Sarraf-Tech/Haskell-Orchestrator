@@ -3,7 +3,7 @@ module Test.Formatter (tests) where
 import Data.Text qualified as T
 import Orchestrator.Formatter
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (testCase, assertBool, (@?=))
+import Test.Tasty.HUnit (assertBool, testCase, (@?=))
 
 ------------------------------------------------------------------------
 -- Sample YAML inputs
@@ -11,43 +11,46 @@ import Test.Tasty.HUnit (testCase, assertBool, (@?=))
 
 -- | Well-formed workflow YAML already in canonical order
 canonicalYaml :: T.Text
-canonicalYaml = T.unlines
-  [ "name: CI"
-  , "on:"
-  , "  push:"
-  , "    branches: [main]"
-  , "permissions:"
-  , "  contents: read"
-  , "jobs:"
-  , "  build:"
-  , "    runs-on: ubuntu-latest"
-  , "    steps:"
-  , "      - run: echo hello"
-  ]
+canonicalYaml =
+  T.unlines
+    [ "name: CI",
+      "on:",
+      "  push:",
+      "    branches: [main]",
+      "permissions:",
+      "  contents: read",
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - run: echo hello"
+    ]
 
 -- | Workflow with top-level keys in non-canonical order
 outOfOrderYaml :: T.Text
-outOfOrderYaml = T.unlines
-  [ "jobs:"
-  , "  build:"
-  , "    runs-on: ubuntu-latest"
-  , "name: CI"
-  , "on:"
-  , "  push:"
-  , "    branches: [main]"
-  ]
+outOfOrderYaml =
+  T.unlines
+    [ "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      "name: CI",
+      "on:",
+      "  push:",
+      "    branches: [main]"
+    ]
 
 -- | Workflow with 4-space indentation
 fourSpaceYaml :: T.Text
-fourSpaceYaml = T.unlines
-  [ "name: CI"
-  , "on:"
-  , "    push:"
-  , "        branches: [main]"
-  , "jobs:"
-  , "    build:"
-  , "        runs-on: ubuntu-latest"
-  ]
+fourSpaceYaml =
+  T.unlines
+    [ "name: CI",
+      "on:",
+      "    push:",
+      "        branches: [main]",
+      "jobs:",
+      "    build:",
+      "        runs-on: ubuntu-latest"
+    ]
 
 -- | Empty YAML
 emptyYaml :: T.Text
@@ -62,18 +65,20 @@ singleKeyYaml = "name: MyWorkflow\n"
 ------------------------------------------------------------------------
 
 tests :: TestTree
-tests = testGroup "Formatter"
-  [ testDefaultConfig
-  , testFormatCanonicalUnchangedContent
-  , testFormatSortKeys
-  , testFormatEmpty
-  , testFormatSingleKey
-  , testFormatIndentNormalized
-  , testRenderDiffIdentical
-  , testRenderDiffChanged
-  , testQuoteStyleEnum
-  , testConfigFields
-  ]
+tests =
+  testGroup
+    "Formatter"
+    [ testDefaultConfig,
+      testFormatCanonicalUnchangedContent,
+      testFormatSortKeys,
+      testFormatEmpty,
+      testFormatSingleKey,
+      testFormatIndentNormalized,
+      testRenderDiffIdentical,
+      testRenderDiffChanged,
+      testQuoteStyleEnum,
+      testConfigFields
+    ]
 
 -- | Default config: 2-space indent, sorted keys, no quote
 testDefaultConfig :: TestTree
@@ -93,16 +98,16 @@ testFormatCanonicalUnchangedContent = testCase "formatWorkflowYAML/canonical-pre
 -- | Out-of-order YAML → 'name' appears before 'jobs' after formatting
 testFormatSortKeys :: TestTree
 testFormatSortKeys = testCase "formatWorkflowYAML/sort-puts-name-before-jobs" $ do
-  let out   = formatWorkflowYAML defaultFormatConfig outOfOrderYaml
-      ls    = T.lines out
+  let out = formatWorkflowYAML defaultFormatConfig outOfOrderYaml
+      ls = T.lines out
       nameI = findLineIndex "name:" ls
       jobsI = findLineIndex "jobs:" ls
   assertBool "name before jobs after sort" (nameI < jobsI)
 
 findLineIndex :: T.Text -> [T.Text] -> Int
-findLineIndex needle ls = case filter (T.isInfixOf needle . snd) (zip [0..] ls) of
-  ((i, _):_) -> i
-  []         -> maxBound
+findLineIndex needle ls = case filter (T.isInfixOf needle . snd) (zip [0 ..] ls) of
+  ((i, _) : _) -> i
+  [] -> maxBound
 
 -- | Empty input → output is empty or blank
 testFormatEmpty :: TestTree
@@ -119,7 +124,7 @@ testFormatSingleKey = testCase "formatWorkflowYAML/single-key" $ do
 -- | 4-space indented input → output has correct relative indentation
 testFormatIndentNormalized :: TestTree
 testFormatIndentNormalized = testCase "formatWorkflowYAML/indent-normalized" $ do
-  let cfg = defaultFormatConfig { fcIndentWidth = 2 }
+  let cfg = defaultFormatConfig {fcIndentWidth = 2}
       out = formatWorkflowYAML cfg fourSpaceYaml
   assertBool "output non-empty" (not (T.null out))
   assertBool "contains jobs:" ("jobs:" `T.isInfixOf` out)
@@ -133,11 +138,11 @@ testRenderDiffIdentical = testCase "renderFormatDiff/identical-no-changes" $ do
 -- | Different inputs → diff output contains change markers
 testRenderDiffChanged :: TestTree
 testRenderDiffChanged = testCase "renderFormatDiff/different-shows-diff" $ do
-  let original  = "name: Old\njobs:\n  build:\n    runs-on: ubuntu-latest\n"
+  let original = "name: Old\njobs:\n  build:\n    runs-on: ubuntu-latest\n"
       formatted = "name: New\njobs:\n  build:\n    runs-on: ubuntu-latest\n"
       txt = renderFormatDiff original formatted
   assertBool "diff contains minus line" ("- " `T.isInfixOf` txt)
-  assertBool "diff contains plus line"  ("+ " `T.isInfixOf` txt)
+  assertBool "diff contains plus line" ("+ " `T.isInfixOf` txt)
 
 -- | QuoteStyle enum has all three constructors
 testQuoteStyleEnum :: TestTree
@@ -150,7 +155,7 @@ testQuoteStyleEnum = testCase "QuoteStyle/all-constructors" $ do
 -- | FormatConfig can be constructed with custom values
 testConfigFields :: TestTree
 testConfigFields = testCase "FormatConfig/custom-config" $ do
-  let cfg = FormatConfig { fcIndentWidth = 4, fcSortKeys = False, fcQuoteStyle = SingleQuote }
+  let cfg = FormatConfig {fcIndentWidth = 4, fcSortKeys = False, fcQuoteStyle = SingleQuote}
   fcIndentWidth cfg @?= 4
   fcSortKeys cfg @?= False
   fcQuoteStyle cfg @?= SingleQuote

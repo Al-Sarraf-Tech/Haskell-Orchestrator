@@ -1,9 +1,10 @@
 -- | Pretty-printed error messages with context and fix suggestions.
 module Orchestrator.Errors
-  ( formatError
-  , suggestFix
-  , ErrorContext (..)
-  ) where
+  ( formatError,
+    suggestFix,
+    ErrorContext (..),
+  )
+where
 
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -11,11 +12,12 @@ import Orchestrator.Types (OrchestratorError (..))
 
 -- | Rich context for an error, suitable for terminal display.
 data ErrorContext = ErrorContext
-  { errFile       :: !(Maybe FilePath)
-  , errLine       :: !(Maybe Int)
-  , errMessage    :: !Text
-  , errSuggestion :: !(Maybe Text)
-  } deriving stock (Eq, Show)
+  { errFile :: !(Maybe FilePath),
+    errLine :: !(Maybe Int),
+    errMessage :: !Text,
+    errSuggestion :: !(Maybe Text)
+  }
+  deriving stock (Eq, Show)
 
 -- | Format an 'OrchestratorError' as a human-readable multi-line block.
 --
@@ -35,7 +37,7 @@ data ErrorContext = ErrorContext
 formatError :: OrchestratorError -> Text
 formatError err =
   let ctx = toErrorContext err
-  in renderContext ctx
+   in renderContext ctx
 
 -- | Return a fix suggestion for known error patterns, Nothing otherwise.
 suggestFix :: OrchestratorError -> Maybe Text
@@ -47,49 +49,55 @@ suggestFix err = errSuggestion (toErrorContext err)
 
 -- | Convert an 'OrchestratorError' to a structured 'ErrorContext'.
 toErrorContext :: OrchestratorError -> ErrorContext
-toErrorContext (ParseError fp msg) = ErrorContext
-  { errFile       = Just fp
-  , errLine       = extractLine msg
-  , errMessage    = stripLinePrefix msg
-  , errSuggestion = suggestForParseError msg
-  }
-toErrorContext (ConfigError msg) = ErrorContext
-  { errFile       = Nothing
-  , errLine       = Nothing
-  , errMessage    = msg
-  , errSuggestion = suggestForConfigError msg
-  }
-toErrorContext (ScanError msg) = ErrorContext
-  { errFile       = Nothing
-  , errLine       = Nothing
-  , errMessage    = msg
-  , errSuggestion = suggestForScanError msg
-  }
-toErrorContext (ValidationError msg) = ErrorContext
-  { errFile       = Nothing
-  , errLine       = Nothing
-  , errMessage    = msg
-  , errSuggestion = suggestForValidationError msg
-  }
-toErrorContext (IOError' msg) = ErrorContext
-  { errFile       = Nothing
-  , errLine       = Nothing
-  , errMessage    = msg
-  , errSuggestion = suggestForIOError msg
-  }
+toErrorContext (ParseError fp msg) =
+  ErrorContext
+    { errFile = Just fp,
+      errLine = extractLine msg,
+      errMessage = stripLinePrefix msg,
+      errSuggestion = suggestForParseError msg
+    }
+toErrorContext (ConfigError msg) =
+  ErrorContext
+    { errFile = Nothing,
+      errLine = Nothing,
+      errMessage = msg,
+      errSuggestion = suggestForConfigError msg
+    }
+toErrorContext (ScanError msg) =
+  ErrorContext
+    { errFile = Nothing,
+      errLine = Nothing,
+      errMessage = msg,
+      errSuggestion = suggestForScanError msg
+    }
+toErrorContext (ValidationError msg) =
+  ErrorContext
+    { errFile = Nothing,
+      errLine = Nothing,
+      errMessage = msg,
+      errSuggestion = suggestForValidationError msg
+    }
+toErrorContext (IOError' msg) =
+  ErrorContext
+    { errFile = Nothing,
+      errLine = Nothing,
+      errMessage = msg,
+      errSuggestion = suggestForIOError msg
+    }
 
 renderContext :: ErrorContext -> Text
-renderContext ctx = T.unlines $ filter (not . T.null) $
-  [ "Error: " <> headline ctx
-  , maybe "" (\f -> "  File: " <> T.pack f) (errFile ctx)
-  , maybe "" (\l -> "  Line: " <> T.pack (show l)) (errLine ctx)
-  , ""
-  , "  " <> errMessage ctx
-  ]
-  ++
-  case errSuggestion ctx of
-    Nothing  -> []
-    Just sug -> ["", "  Suggestion: " <> sug]
+renderContext ctx =
+  T.unlines $
+    filter (not . T.null) $
+      [ "Error: " <> headline ctx,
+        maybe "" (\f -> "  File: " <> T.pack f) (errFile ctx),
+        maybe "" (\l -> "  Line: " <> T.pack (show l)) (errLine ctx),
+        "",
+        "  " <> errMessage ctx
+      ]
+        ++ case errSuggestion ctx of
+          Nothing -> []
+          Just sug -> ["", "  Suggestion: " <> sug]
 
 headline :: ErrorContext -> Text
 headline ctx
@@ -106,15 +114,17 @@ extractLine :: Text -> Maybe Int
 extractLine msg =
   let ws = T.words msg
       pairs = zip ws (tail ws)
-      found = [ n | ("line", numT) <- pairs
-                  , let cleaned = T.dropWhile (not . isDigitChar) numT
-                  , let digits  = T.takeWhile isDigitChar cleaned
-                  , not (T.null digits)
-                  , let n = read (T.unpack digits) :: Int
-                  ]
-  in case found of
-       (n:_) -> Just n
-       []    -> Nothing
+      found =
+        [ n
+        | ("line", numT) <- pairs,
+          let cleaned = T.dropWhile (not . isDigitChar) numT,
+          let digits = T.takeWhile isDigitChar cleaned,
+          not (T.null digits),
+          let n = read (T.unpack digits) :: Int
+        ]
+   in case found of
+        (n : _) -> Just n
+        [] -> Nothing
 
 isDigitChar :: Char -> Bool
 isDigitChar c = c >= '0' && c <= '9'
@@ -133,20 +143,22 @@ stripLinePrefix msg
 suggestForParseError :: Text -> Maybe Text
 suggestForParseError msg
   | "on" `T.isInfixOf` msg || "trigger" `T.isInfixOf` T.toLower msg =
-      Just $ T.unlines
-        [ "Add a trigger configuration:"
-        , "  on:"
-        , "    push:"
-        , "      branches: [main]"
-        ]
+      Just $
+        T.unlines
+          [ "Add a trigger configuration:",
+            "  on:",
+            "    push:",
+            "      branches: [main]"
+          ]
   | "jobs" `T.isInfixOf` msg =
-      Just $ T.unlines
-        [ "Add at least one job:"
-        , "  jobs:"
-        , "    build:"
-        , "      runs-on: ubuntu-latest"
-        , "      steps: []"
-        ]
+      Just $
+        T.unlines
+          [ "Add at least one job:",
+            "  jobs:",
+            "    build:",
+            "      runs-on: ubuntu-latest",
+            "      steps: []"
+          ]
   | "indent" `T.isInfixOf` T.toLower msg || "mapping" `T.isInfixOf` T.toLower msg =
       Just "Check indentation — YAML uses 2-space indentation, not tabs."
   | "unexpected" `T.isInfixOf` T.toLower msg =

@@ -3,9 +3,10 @@
 -- Determines the process exit code based on findings and a configurable
 -- severity threshold, enabling @--fail-on@ behaviour in CI pipelines.
 module Orchestrator.Gate
-  ( gateFindings
-  , parseFailOn
-  ) where
+  ( gateFindings,
+    parseFailOn,
+  )
+where
 
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -21,8 +22,8 @@ gateFindings threshold findings
 -- | Parse a severity threshold string.  Case insensitive.
 parseFailOn :: Text -> Maybe Severity
 parseFailOn t = case T.toLower t of
-  "info"     -> Just Info
-  "warning"  -> Just Warning
-  "error"    -> Just Error
+  "info" -> Just Info
+  "warning" -> Just Warning
+  "error" -> Just Error
   "critical" -> Just Critical
-  _          -> Nothing
+  _ -> Nothing

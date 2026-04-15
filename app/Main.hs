@@ -1,6 +1,8 @@
 module Main (main) where
 
 import CLI (Command (..), Options (..), OutputMode (..), parseOptions)
+import Control.Concurrent (threadDelay)
+import Data.IORef (newIORef, readIORef, writeIORef)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Text (Text)
@@ -15,52 +17,55 @@ import Orchestrator.Errors (formatError)
 import Orchestrator.Fix (FixConfig (..), analyzeFixable, applyFixes, defaultFixConfig)
 import Orchestrator.Gate (gateFindings, parseFailOn)
 import Orchestrator.Interactive (interactiveRulePicker)
+import Orchestrator.Parser (parseWorkflowFile)
 import Orchestrator.Policy
-    ( PolicyPack (..), PolicyRule (..) )
+  ( PolicyPack (..),
+    PolicyRule (..),
+  )
 import Orchestrator.Policy.Extended (extendedPolicyPack)
-import Orchestrator.Tags (filterByTags, parseRuleTag)
 import Orchestrator.Render
-    ( renderFindings, renderFindingsJSON, renderSummary )
+  ( renderFindings,
+    renderFindingsJSON,
+    renderSummary,
+  )
 import Orchestrator.Render.Markdown (renderMarkdownFindings, renderMarkdownSummary)
 import Orchestrator.Render.Sarif (renderSarifJSON)
 import Orchestrator.Render.Upgrade (renderUpgradePath)
-import Orchestrator.UI.Server (startDashboard, defaultServerConfig, ServerConfig (..))
-import Orchestrator.Version (orchestratorVersion, orchestratorEdition)
 import Orchestrator.Scan (findWorkflowFiles, scanLocalPath)
-import Orchestrator.Parser (parseWorkflowFile)
+import Orchestrator.Tags (filterByTags, parseRuleTag)
 import Orchestrator.Types
+import Orchestrator.UI.Server (ServerConfig (..), defaultServerConfig, startDashboard)
 import Orchestrator.Validate (ValidationResult (..), validateWorkflow)
-import Control.Concurrent (threadDelay)
-import Data.IORef (newIORef, readIORef, writeIORef)
+import Orchestrator.Version (orchestratorEdition, orchestratorVersion)
 import System.Directory (doesDirectoryExist, doesFileExist, getModificationTime)
-import System.Exit (ExitCode (..), exitWith, exitFailure)
+import System.Exit (ExitCode (..), exitFailure, exitWith)
 import System.IO (hPutStrLn, stderr)
 
 main :: IO ()
 main = do
   opts <- execParser parseOptions
   case optCommand opts of
-    CmdDemo            -> runDemo
-    CmdDoctor          -> runDoctor opts
-    CmdInit            -> runInit
-    CmdScan p          -> runScan opts p
-    CmdValidate p      -> runValidate opts p
-    CmdPlan p          -> runPlan opts p
-    CmdDiff p          -> runPlan opts p
-    CmdFix p write     -> runFix opts p write
-    CmdExplain rid     -> runExplain opts rid
-    CmdRules           -> runRules opts
-    CmdVerify          -> runVerify opts
-    CmdBaseline p      -> runBaseline opts p
-    CmdUpgradePath p   -> runUpgradePath opts p
-    CmdUI p mPort      -> runUI p mPort
+    CmdDemo -> runDemo
+    CmdDoctor -> runDoctor opts
+    CmdInit -> runInit
+    CmdScan p -> runScan opts p
+    CmdValidate p -> runValidate opts p
+    CmdPlan p -> runPlan opts p
+    CmdDiff p -> runPlan opts p
+    CmdFix p write -> runFix opts p write
+    CmdExplain rid -> runExplain opts rid
+    CmdRules -> runRules opts
+    CmdVerify -> runVerify opts
+    CmdBaseline p -> runBaseline opts p
+    CmdUpgradePath p -> runUpgradePath opts p
+    CmdUI p mPort -> runUI p mPort
 
 -- | Select the policy pack to use, optionally filtering by tags.
 activePack :: Options -> PolicyPack
 activePack opts =
   let base = extendedPolicyPack
       tags = mapMaybe parseRuleTag (optTags opts)
-  in base { packRules = filterByTags tags (packRules base) }
+   in base {packRules = filterByTags tags (packRules base)}
 
 -- | Render findings according to the selected output mode.
 renderOutput :: OutputMode -> [Finding] -> Text
@@ -85,9 +90,10 @@ runScan opts path
 
 runScanOnce :: Options -> FilePath -> IO ExitCode
 runScanOnce opts path = do
-  basePack <- if optInteractive opts
-                then interactiveRulePicker (activePack opts)
-                else pure (activePack opts)
+  basePack <-
+    if optInteractive opts
+      then interactiveRulePicker (activePack opts)
+      else pure (activePack opts)
   let pack = basePack
       scfg = cfgScan defaultConfig
   result <- scanLocalPath pack scfg path
@@ -104,7 +110,7 @@ runScanOnce opts path = do
       TIO.putStrLn $ renderOutput (optOutput opts) findings
       pure $ case optFailOn opts >>= parseFailOn of
         Just threshold -> gateFindings threshold findings
-        Nothing        -> findingsExitCode findings
+        Nothing -> findingsExitCode findings
 
 -- | Poll directory for .yml modification-time changes. Returns current snapshot.
 snapshotTimes :: FilePath -> IO (Map.Map FilePath String)
@@ -141,16 +147,20 @@ watchLoop action dir = do
 runValidate :: Options -> FilePath -> IO ()
 runValidate opts path = do
   files <- findWorkflowFiles 1 (path ++ "/.github/workflows")
-  allFindings <- concat <$> mapM (\f -> do
-    r <- parseWorkflowFile f
-    case r of
-      Left err -> do
-        hPutStrLn stderr $ "Parse error: " ++ show err
-        pure []
-      Right wf -> do
-        let ValidationResult _ fs _ = validateWorkflow wf
-        pure fs
-    ) files
+  allFindings <-
+    concat
+      <$> mapM
+        ( \f -> do
+            r <- parseWorkflowFile f
+            case r of
+              Left err -> do
+                hPutStrLn stderr $ "Parse error: " ++ show err
+                pure []
+              Right wf -> do
+                let ValidationResult _ fs _ = validateWorkflow wf
+                pure fs
+        )
+        files
   TIO.putStrLn $ renderOutput (optOutput opts) allFindings
   exitWith (findingsExitCode allFindings)
 
@@ -175,17 +185,19 @@ runFix _opts path writeMode = do
   if null files
     then TIO.putStrLn "No workflow files found."
     else do
-      let cfg = defaultFixConfig { fcWrite = writeMode }
-      mapM_ (\f -> do
-        content <- TIO.readFile f
-        let actions = analyzeFixable f content
-        if null actions
-          then TIO.putStrLn $ "  " <> T.pack f <> ": no fixes needed"
-          else do
-            let (diff, _result) = applyFixes cfg f content actions
-            TIO.putStrLn $ "  " <> T.pack f <> ": " <> T.pack (show (length actions)) <> " fix(es)"
-            TIO.putStrLn diff
-        ) files
+      let cfg = defaultFixConfig {fcWrite = writeMode}
+      mapM_
+        ( \f -> do
+            content <- TIO.readFile f
+            let actions = analyzeFixable f content
+            if null actions
+              then TIO.putStrLn $ "  " <> T.pack f <> ": no fixes needed"
+              else do
+                let (diff, _result) = applyFixes cfg f content actions
+                TIO.putStrLn $ "  " <> T.pack f <> ": " <> T.pack (show (length actions)) <> " fix(es)"
+                TIO.putStrLn diff
+        )
+        files
       if writeMode
         then TIO.putStrLn "Fixes applied (backups created with .bak extension)."
         else TIO.putStrLn "Dry-run mode. Use --write to apply fixes."
@@ -237,32 +249,33 @@ runInit = do
       TIO.putStrLn "Config file .orchestrator.yml already exists."
       TIO.putStrLn "Remove it first if you want to regenerate."
     else do
-      let content = T.unlines
-            [ "# Haskell Orchestrator v" <> orchestratorVersion <> " configuration"
-            , "# Docs: https://github.com/jalsarraf0/Haskell-Orchestrator"
-            , "#"
-            , "# This tool scans GitHub Actions workflows for policy violations,"
-            , "# drift, and hygiene issues. All operations are read-only by default."
-            , ""
-            , "scan:"
-            , "  exclude: []"
-            , "  max_depth: 10"
-            , "  follow_symlinks: false"
-            , ""
-            , "policy:"
-            , "  pack: extended       # standard (10 rules) or extended (21 rules)"
-            , "  min_severity: info   # info, warning, error, critical"
-            , "  disabled: []         # Rule IDs to disable, e.g. [NAME-001, NAME-002]"
-            , ""
-            , "output:"
-            , "  format: text         # text, json, sarif, markdown"
-            , "  verbose: false"
-            , "  color: true"
-            , ""
-            , "resources:"
-            , "  # jobs: 4"
-            , "  profile: safe        # safe, balanced, fast"
-            ]
+      let content =
+            T.unlines
+              [ "# Haskell Orchestrator v" <> orchestratorVersion <> " configuration",
+                "# Docs: https://github.com/jalsarraf0/Haskell-Orchestrator",
+                "#",
+                "# This tool scans GitHub Actions workflows for policy violations,",
+                "# drift, and hygiene issues. All operations are read-only by default.",
+                "",
+                "scan:",
+                "  exclude: []",
+                "  max_depth: 10",
+                "  follow_symlinks: false",
+                "",
+                "policy:",
+                "  pack: extended       # standard (10 rules) or extended (21 rules)",
+                "  min_severity: info   # info, warning, error, critical",
+                "  disabled: []         # Rule IDs to disable, e.g. [NAME-001, NAME-002]",
+                "",
+                "output:",
+                "  format: text         # text, json, sarif, markdown",
+                "  verbose: false",
+                "  color: true",
+                "",
+                "resources:",
+                "  # jobs: 4",
+                "  profile: safe        # safe, balanced, fast"
+              ]
       TIO.writeFile ".orchestrator.yml" content
       TIO.putStrLn "Created .orchestrator.yml"
       TIO.putStrLn ""
@@ -284,7 +297,7 @@ runExplain opts rid = do
       mapM_ (\r -> TIO.putStrLn $ "  " <> ruleId r <> "  " <> ruleName r) rules
       TIO.putStrLn ""
       TIO.putStrLn "Use 'orchestrator rules' for a full listing."
-    (r:_) -> do
+    (r : _) -> do
       TIO.putStrLn $ "Rule:        " <> ruleId r
       TIO.putStrLn $ "Name:        " <> ruleName r
       TIO.putStrLn $ "Severity:    " <> T.pack (show (ruleSeverity r))
@@ -298,12 +311,15 @@ runRules opts = do
   TIO.putStrLn $ T.replicate 70 "-"
   TIO.putStrLn $ padRight 14 "RULE ID" <> padRight 10 "SEVERITY" <> padRight 14 "CATEGORY" <> "NAME"
   TIO.putStrLn $ T.replicate 70 "-"
-  mapM_ (\r -> TIO.putStrLn $
-    padRight 14 (ruleId r)
-    <> padRight 10 (T.pack (show (ruleSeverity r)))
-    <> padRight 14 (T.pack (show (ruleCategory r)))
-    <> ruleName r
-    ) rules
+  mapM_
+    ( \r ->
+        TIO.putStrLn $
+          padRight 14 (ruleId r)
+            <> padRight 10 (T.pack (show (ruleSeverity r)))
+            <> padRight 14 (T.pack (show (ruleCategory r)))
+            <> ruleName r
+    )
+    rules
   TIO.putStrLn $ T.replicate 70 "-"
   TIO.putStrLn $ T.pack (show (length rules)) <> " rules"
   where
@@ -350,8 +366,10 @@ runUpgradePath opts path = do
 
 runUI :: FilePath -> Maybe Int -> IO ()
 runUI path mPort = do
-  let cfg = (defaultServerConfig path)
-              { scPort = fromMaybe 8420 mPort }
+  let cfg =
+        (defaultServerConfig path)
+          { scPort = fromMaybe 8420 mPort
+          }
   startDashboard cfg
 
 -- | Apply baseline filtering if --baseline was provided.
@@ -372,6 +390,10 @@ applyBaseline opts findings = case optBaseline opts of
             pure findings
           Right baseline -> do
             let newFindings = compareWithBaseline baseline findings
-            TIO.putStrLn $ "Baseline: " <> T.pack (show (length findings))
-                <> " total, " <> T.pack (show (length newFindings)) <> " new"
+            TIO.putStrLn $
+              "Baseline: "
+                <> T.pack (show (length findings))
+                <> " total, "
+                <> T.pack (show (length newFindings))
+                <> " new"
             pure newFindings

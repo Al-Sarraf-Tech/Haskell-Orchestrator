@@ -3,9 +3,10 @@
 -- Parses suppression directives from workflow file content and filters
 -- findings accordingly.  This module does not modify any files.
 module Orchestrator.Suppress
-  ( parseSuppressedRules
-  , applySuppression
-  ) where
+  ( parseSuppressedRules,
+    applySuppression,
+  )
+where
 
 import Data.List (foldl')
 import Data.Set (Set)
@@ -25,21 +26,21 @@ parseSuppressedRules = foldl' collectDirectives Set.empty . T.lines
     collectDirectives :: Set Text -> Text -> Set Text
     collectDirectives acc line =
       let stripped = T.strip line
-      in case T.stripPrefix "#" stripped of
-           Nothing -> acc
-           Just rest ->
-             let body = T.strip rest
-                 lower = T.toLower body
-             in case T.stripPrefix "orchestrator:disable" lower of
-                  Nothing -> acc
-                  Just _afterDirective ->
-                    -- Use the original text to preserve rule ID case.
-                    -- The directive is 20 chars ("orchestrator:disable").
-                    let original = T.drop 20 body
-                        ruleId' = T.strip original
-                    in if T.null ruleId'
-                       then acc
-                       else Set.insert ruleId' acc
+       in case T.stripPrefix "#" stripped of
+            Nothing -> acc
+            Just rest ->
+              let body = T.strip rest
+                  lower = T.toLower body
+               in case T.stripPrefix "orchestrator:disable" lower of
+                    Nothing -> acc
+                    Just _afterDirective ->
+                      -- Use the original text to preserve rule ID case.
+                      -- The directive is 20 chars ("orchestrator:disable").
+                      let original = T.drop 20 body
+                          ruleId' = T.strip original
+                       in if T.null ruleId'
+                            then acc
+                            else Set.insert ruleId' acc
 
 -- | Filter findings by removing those whose rule ID is in the suppressed set.
 -- An empty suppression set returns all findings unchanged.

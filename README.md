@@ -178,7 +178,7 @@ sha256sum -c SHA256SUMS-4.0.0.txt
 python3 -m json.tool sbom-4.0.0.json
 ```
 
-Each release ships a tarball, `.deb`, `.rpm`, SHA-256 checksums, and a
+Each release ships a tarball, `.deb`, `.rpm`, Windows zip, SHA-256 checksums, and a
 CycloneDX SBOM.
 
 ### From Source
@@ -526,7 +526,7 @@ and evidence.
 # Build
 cabal build all
 
-# Run all 223 tests
+# Run all 599 tests
 cabal test all --test-show-details=direct
 
 # Zero-warning gate (matches CI)
@@ -542,7 +542,7 @@ ormolu --mode inplace $(find src app test -name '*.hs')
 hlint src/ app/
 ```
 
-**Test coverage:** 223 tests across unit, property (QuickCheck), integration,
+**Test coverage:** 599 tests across unit, property (QuickCheck), integration,
 golden, and edge-case suites. Test modules cover every rule, every render
 format, simulation, permission analysis, baseline/diff, suppress, gate, hooks,
 LSP, and the UI server.

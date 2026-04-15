@@ -25,9 +25,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set CABAL_DIR
         run: echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
+        shell: bash
 
       - name: Cache Cabal store
         uses: actions/cache@v4
@@ -41,6 +44,7 @@ jobs:
             ${{ runner.os }}-standalone-
 
       - name: Build and install binary
+        shell: bash
         run: |
           cabal update
           cabal build all
@@ -51,18 +55,22 @@ jobs:
         env:
           LANG: C.UTF-8
           LC_ALL: C.UTF-8
+        shell: bash
         run: bash scripts/verify-standalone-install.sh _bin/orchestrator
 
   packaging-check:
     name: Packaging Independence Check
     runs-on: [self-hosted, haskell-slim]
     needs: repo-guard
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Verify no cross-edition dependencies
+        shell: bash
         run: |
           FAIL=0
 
