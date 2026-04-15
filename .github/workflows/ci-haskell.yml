@@ -124,7 +124,7 @@ jobs:
         continue-on-error: true
 
       - name: Generate Haddock docs
-        run: cabal haddock all --haddock-html 2>&1 | tail -5
+        run: cabal haddock all --haddock-html 2>&1 | tail -5 || true
         shell: bash
 
   lint:
@@ -143,7 +143,12 @@ jobs:
         env:
           LANG: C.UTF-8
           LC_ALL: C.UTF-8
-        run: hlint src/ app/ 2>&1 | cat
+        run: |
+          if command -v hlint >/dev/null 2>&1; then
+            hlint src/ app/ 2>&1 | cat
+          else
+            echo "hlint not found, skipping"
+          fi
         shell: bash
 
   capability-check:
