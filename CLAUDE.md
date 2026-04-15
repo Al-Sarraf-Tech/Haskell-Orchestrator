@@ -8,7 +8,7 @@ evaluates configurable policy rules, and generates deterministic remediation
 plans — without modifying any files.
 
 - **Edition:** Community (MIT license)
-- **Version:** 4.0.0
+- **Version:** 4.0.2
 - **Language:** Haskell (GHC2021)
 - **Compiler:** GHC 9.6.7
 - **Build tool:** Cabal 3.10+
