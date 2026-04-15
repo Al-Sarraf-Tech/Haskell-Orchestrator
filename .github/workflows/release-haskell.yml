@@ -7,7 +7,6 @@ on:
 permissions:
   contents: write
   pages: write
-  id-token: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -263,6 +262,21 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+
+      - name: Verify artifact checksums
+        shell: bash
+        run: |
+          echo "Verifying artifact integrity..."
+          find artifacts -name 'SHA256SUMS.txt' -exec cat {} \;
+          for sums in artifacts/SHA256SUMS.txt; do
+            if [ -f "$sums" ]; then
+              (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS.txt) || {
+                echo "::error::Artifact checksum verification failed"
+                exit 1
+              }
+            fi
+          done
+          echo "All artifacts verified."
 
       - name: Prepare release assets
         id: prep
