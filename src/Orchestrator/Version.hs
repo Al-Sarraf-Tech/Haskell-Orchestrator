@@ -10,7 +10,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 
 orchestratorVersion :: Text
-orchestratorVersion = "4.0.0"
+orchestratorVersion = "4.0.1"
 
 orchestratorEdition :: Text
 orchestratorEdition = "Community"
