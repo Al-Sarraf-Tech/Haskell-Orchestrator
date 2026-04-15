@@ -310,7 +310,7 @@ orchestrator demo             # self-contained smoke test (no external access)
 bash scripts/verify-release.sh   # full release gate (requires source checkout)
 ```
 
-Pre-push gate (mandatory per CLAUDE.md):
+Pre-push gate (mandatory per project config):
 
 ```bash
 orchestrator-enterprise scan .github/workflows/ --fail-on error

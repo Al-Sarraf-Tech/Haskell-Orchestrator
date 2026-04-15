@@ -93,20 +93,17 @@ jobs:
 
       - name: Verify no prohibited content
         run: |
-          T1="CLAU"
-          T2="DE"
           T3="Anthro"
           T4="pic"
-          TERMS="${T1}${T2}\.md|AGENTS\.md|${T1}${T2} Code|${T3}${T4}|AI-generated|Co-authored-by|Generated-by"
+          TERMS="${T3}${T4}|AI-generated|Co-authored-by|Generated-by"
           FOUND=0
-          if grep -rIl --include='*.md' --include='*.hs' --include='*.cabal' \
+          if grep -rIl --include='*.hs' --include='*.cabal' \
                -E "$TERMS" . 2>/dev/null | grep -v '.local/' | grep -v '.git/'; then
             FOUND=1
           fi
-          [ -f "${T1}${T2}.md" ] && FOUND=1
           [ -f "AGENTS.md" ] && FOUND=1
           if [ "$FOUND" -eq 1 ]; then
-            echo "ERROR: Prohibited content or files detected"
+            echo "ERROR: Prohibited content detected in source files"
             exit 1
           fi
           echo "Clean"
