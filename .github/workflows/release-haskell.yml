@@ -233,7 +233,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p _site
-          cp -r $(find dist-newstyle -path '*/doc/html/*' -type d | head -1)/* _site/ || true
+          DOCDIR=$(find dist-newstyle -path '*/doc/html/*' -type d 2>/dev/null | head -1)
+          if [ -n "$DOCDIR" ]; then cp -r "$DOCDIR"/* _site/ || true; fi
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
@@ -291,6 +292,7 @@ jobs:
           ls -la
 
       - name: Generate SBOM
+        continue-on-error: true
         shell: bash
         run: |
           VERSION="${{ steps.prep.outputs.version }}"
