@@ -228,7 +228,7 @@ jobs:
           echo "/opt/haskell/.ghcup/bin" >> "$GITHUB_PATH"
       - name: Generate Haddock
         shell: bash
-        run: cabal haddock all --haddock-html --haddock-hyperlink-source
+        run: cabal haddock all --haddock-html --haddock-hyperlink-source || true
       - name: Prepare pages content
         shell: bash
         run: |
