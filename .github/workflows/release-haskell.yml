@@ -235,7 +235,7 @@ jobs:
           mkdir -p _site
           DOCDIR=$(find dist-newstyle -path '*/doc/html/*' -type d 2>/dev/null | head -1)
           if [ -n "$DOCDIR" ]; then cp -r "$DOCDIR"/* _site/ || true; fi
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - name: Deploy to GitHub Pages
