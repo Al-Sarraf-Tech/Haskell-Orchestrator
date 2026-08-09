@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, haskell-slim]
+          - runner: [self-hosted, dominus]
             os-name: linux
             arch: x86_64
             ext: ''
