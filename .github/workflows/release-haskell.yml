@@ -208,7 +208,7 @@ jobs:
   docs:
     name: Publish API docs
     needs: [repo-guard]
-    runs-on: [self-hosted, haskell-slim]
+    runs-on: [self-hosted, dominus]
     timeout-minutes: 15
     permissions:
       pages: write
@@ -246,7 +246,7 @@ jobs:
     name: Publish Release
     needs: build
     if: ${{ always() && needs.build.result != 'cancelled' }}
-    runs-on: [self-hosted, haskell-slim]
+    runs-on: [self-hosted, dominus]
     environment:
       name: release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
@@ -370,7 +370,7 @@ jobs:
   container:
     name: Build and push container
     needs: [repo-guard, build]
-    runs-on: [self-hosted, haskell-slim]
+    runs-on: [self-hosted, dominus]
     timeout-minutes: 15
     permissions:
       packages: write

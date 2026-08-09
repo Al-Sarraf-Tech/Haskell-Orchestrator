@@ -22,7 +22,7 @@ jobs:
 
   dependency-audit:
     name: Dependency Audit
-    runs-on: [self-hosted, haskell-slim]
+    runs-on: [self-hosted, dominus]
     needs: repo-guard
     timeout-minutes: 15
 
@@ -75,7 +75,7 @@ jobs:
 
   secret-scan:
     name: Secret Scan
-    runs-on: [self-hosted, haskell-slim]
+    runs-on: [self-hosted, dominus]
     needs: repo-guard
     timeout-minutes: 10
 
@@ -92,7 +92,7 @@ jobs:
 
   attribution-check:
     name: Attribution Check
-    runs-on: [self-hosted, haskell-slim]
+    runs-on: [self-hosted, dominus]
     needs: repo-guard
     timeout-minutes: 5
 

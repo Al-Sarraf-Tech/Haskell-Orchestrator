@@ -19,7 +19,7 @@ jobs:
 
   build-and-test:
     name: Build and Test
-    runs-on: [self-hosted, haskell-slim]
+    runs-on: [self-hosted, dominus]
     needs: repo-guard
     timeout-minutes: 30
 
@@ -129,7 +129,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: [self-hosted, haskell-slim]
+    runs-on: [self-hosted, dominus]
     needs: repo-guard
     timeout-minutes: 10
 
@@ -153,7 +153,7 @@ jobs:
 
   capability-check:
     name: Capability Contract Check
-    runs-on: [self-hosted, haskell-slim]
+    runs-on: [self-hosted, dominus]
     needs: repo-guard
     timeout-minutes: 5
 
@@ -178,7 +178,7 @@ jobs:
 
   orchestrator-self-check:
     name: "Orchestrator Self-Check"
-    runs-on: [self-hosted, haskell-slim]
+    runs-on: [self-hosted, dominus]
     needs: [build-and-test]
     timeout-minutes: 10
     env:
