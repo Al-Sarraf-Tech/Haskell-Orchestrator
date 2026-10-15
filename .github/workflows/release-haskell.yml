@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, dominus]
+          - runner: [self-hosted, Linux, X64, ci-heavy]
             os-name: linux
             arch: x86_64
             ext: ''
@@ -208,7 +208,7 @@ jobs:
   docs:
     name: Publish API docs
     needs: [repo-guard]
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, ci-heavy]
     timeout-minutes: 15
     permissions:
       pages: write
@@ -246,7 +246,7 @@ jobs:
     name: Publish Release
     needs: build
     if: ${{ always() && needs.build.result != 'cancelled' }}
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, ci-heavy]
     environment:
       name: release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
@@ -370,7 +370,7 @@ jobs:
   container:
     name: Build and push container
     needs: [repo-guard, build]
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, ci-heavy]
     timeout-minutes: 15
     permissions:
       packages: write

@@ -18,7 +18,7 @@ permissions: {}
 jobs:
   repo-guard:
     name: Repository Context Guard
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, ci-heavy]
     timeout-minutes: 2
     outputs:
       status: ${{ steps.result.outputs.status }}
