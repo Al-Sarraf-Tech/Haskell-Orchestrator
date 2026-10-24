@@ -18,7 +18,7 @@ permissions: {}
 jobs:
   repo-guard:
     name: Repository Context Guard
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, fleet-small]
     timeout-minutes: 2
     outputs:
       status: ${{ steps.result.outputs.status }}
@@ -38,27 +38,6 @@ jobs:
             exit 1
           fi
           echo "Repository context verified: ${{ github.repository }}"
-
-      - name: Thermal safety check
-        shell: bash
-        run: |
-          HOST=$(hostname | tr '[:upper:]' '[:lower:]')
-          echo "Runner hostname: $HOST"
-          # dominus and WSL2 are watercooled — thermal limit does not apply
-          if [[ "$HOST" == "dominus" || "$HOST" == *"wsl"* ]]; then
-            echo "Watercooled host ($HOST) — thermal check skipped"
-            exit 0
-          fi
-          if command -v sensors &>/dev/null; then
-            TEMP=$(sensors 2>/dev/null | grep -oP 'Package.*?\+\K[0-9]+' | head -1 || echo "0")
-            echo "CPU temperature: ${TEMP}°C"
-            if [ "${TEMP:-0}" -ge 100 ]; then
-              echo "::error::THERMAL ABORT: CPU at ${TEMP}°C — exceeds 100°C critical limit (air-cooled host: $HOST)"
-              exit 1
-            fi
-          else
-            echo "sensors not available — thermal check skipped"
-          fi
 
       - name: Set guard output
         id: result

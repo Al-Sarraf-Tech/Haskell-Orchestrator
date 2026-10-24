@@ -19,7 +19,7 @@ jobs:
 
   standalone-binary:
     name: Standalone Binary Verification
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, haskell]
     needs: repo-guard
     timeout-minutes: 30
     steps:
@@ -31,17 +31,6 @@ jobs:
       - name: Set CABAL_DIR
         run: echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
         shell: bash
-
-      - name: Cache Cabal store
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cabal/packages
-            ~/.cabal/store
-            dist-newstyle
-          key: ${{ runner.os }}-standalone-${{ hashFiles('orchestrator.cabal', 'cabal.project') }}
-          restore-keys: |
-            ${{ runner.os }}-standalone-
 
       - name: Build and install binary
         shell: bash
@@ -60,7 +49,7 @@ jobs:
 
   packaging-check:
     name: Packaging Independence Check
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, fleet-small]
     needs: repo-guard
     timeout-minutes: 10
     steps:

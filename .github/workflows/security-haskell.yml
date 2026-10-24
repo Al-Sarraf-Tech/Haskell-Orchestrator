@@ -22,7 +22,7 @@ jobs:
 
   dependency-audit:
     name: Dependency Audit
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, fleet-medium]
     needs: repo-guard
     timeout-minutes: 15
 
@@ -35,17 +35,6 @@ jobs:
       - name: Set CABAL_DIR
         run: echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
         shell: bash
-
-      - name: Cache Cabal
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cabal/packages
-            ~/.cabal/store
-          key: ${{ runner.os }}-cabal-security-${{ hashFiles('**/*.cabal', 'cabal.project') }}
-          restore-keys: |
-            ${{ runner.os }}-cabal-security-
-            ${{ runner.os }}-cabal-
 
       - name: Update index
         run: cabal update
@@ -75,7 +64,7 @@ jobs:
 
   secret-scan:
     name: Secret Scan
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, fleet-small]
     needs: repo-guard
     timeout-minutes: 10
 
@@ -87,12 +76,12 @@ jobs:
           persist-credentials: false
 
       - name: Gitleaks scan
-        run: gitleaks detect --source=. --no-banner --exit-code=1
+        run: gitleaks detect --source=. --no-banner --redact --exit-code=1
         shell: bash
 
   attribution-check:
     name: Attribution Check
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, fleet-small]
     needs: repo-guard
     timeout-minutes: 5
 

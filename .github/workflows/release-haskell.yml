@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, dominus]
+          - runner: [self-hosted, Linux, X64, haskell]
             os-name: linux
             arch: x86_64
             ext: ''
@@ -47,9 +47,6 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          echo "$HOME/.ghcup/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.cabal/bin" >> "$GITHUB_PATH"
-          echo "/opt/haskell/.ghcup/bin" >> "$GITHUB_PATH"
           echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
 
       - name: Setup Haskell paths (Windows)
@@ -62,17 +59,6 @@ jobs:
           echo "C:\Program Files\Git\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           $cabalDir = "$env:APPDATA\cabal"
           echo "CABAL_DIR=$cabalDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: Cache Cabal
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cabal/packages
-            ~/.cabal/store
-            ~/AppData/Roaming/cabal/packages
-            ~/AppData/Roaming/cabal/store
-            dist-newstyle
-          key: release-${{ matrix.os-name }}-${{ matrix.arch }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
 
       - name: Update and build (Unix)
         if: runner.os != 'Windows'
@@ -208,7 +194,7 @@ jobs:
   docs:
     name: Publish API docs
     needs: [repo-guard]
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, haskell]
     timeout-minutes: 15
     permissions:
       pages: write
@@ -223,9 +209,7 @@ jobs:
       - name: Setup Haskell paths
         shell: bash
         run: |
-          echo "$HOME/.ghcup/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.cabal/bin" >> "$GITHUB_PATH"
-          echo "/opt/haskell/.ghcup/bin" >> "$GITHUB_PATH"
+          echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
       - name: Generate Haddock
         shell: bash
         run: cabal haddock all --haddock-html --haddock-hyperlink-source || true
@@ -246,7 +230,7 @@ jobs:
     name: Publish Release
     needs: build
     if: ${{ always() && needs.build.result != 'cancelled' }}
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, haskell]
     environment:
       name: release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
@@ -370,7 +354,7 @@ jobs:
   container:
     name: Build and push container
     needs: [repo-guard, build]
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, docker]
     timeout-minutes: 15
     permissions:
       packages: write
@@ -384,18 +368,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
-        run: echo "${GITHUB_TOKEN}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build container image
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          podman build -f Containerfile -t ghcr.io/al-sarraf-tech/orchestrator:${VERSION} .
-          podman tag ghcr.io/al-sarraf-tech/orchestrator:${VERSION} ghcr.io/al-sarraf-tech/orchestrator:latest
+          docker build -f Containerfile -t ghcr.io/al-sarraf-tech/orchestrator:${VERSION} .
+          docker tag ghcr.io/al-sarraf-tech/orchestrator:${VERSION} ghcr.io/al-sarraf-tech/orchestrator:latest
 
       - name: Push to GHCR
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          podman push ghcr.io/al-sarraf-tech/orchestrator:${VERSION}
-          podman push ghcr.io/al-sarraf-tech/orchestrator:latest
+          docker push ghcr.io/al-sarraf-tech/orchestrator:${VERSION}
+          docker push ghcr.io/al-sarraf-tech/orchestrator:latest

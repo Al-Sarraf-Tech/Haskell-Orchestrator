@@ -20,7 +20,7 @@ permissions:
 jobs:
   orchestrator-scan:
     name: Orchestrator Workflow Scan
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, fleet-small]
     timeout-minutes: 5
     env:
       SCAN_FAIL_ON: ${{ inputs.fail-on }}
@@ -32,14 +32,29 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run Orchestrator Enterprise scan
+      - name: Install pinned orchestrator
         shell: bash
         run: |
-          ORCH="/usr/local/bin/orchestrator-enterprise"
-          if [ ! -x "$ORCH" ]; then
-            echo "::error::orchestrator-enterprise not found — ensure runner has the binary mounted"
-            exit 1
-          fi
+          # Fresh uci VM: download the public, sha256-verified release into the job's temp dir.
+          # (The Enterprise edition lives in a private repo and cannot be fetched without credentials;
+          # this is the public edition, same CLI, 36 rules.)
+          VERSION="4.0.2"
+          ARCHIVE="haskell-orchestrator-${VERSION}-linux-x86_64.tar.gz"
+          SHA256="eed8b54c7c2eee1dfd89e0237924738706a5471d6492308e64a71303e7c94b3f"
+          TOOLS="${RUNNER_TEMP:?}/orchestrator-tools"
+          mkdir -p "$TOOLS"
+          curl --proto '=https' --tlsv1.2 --retry 3 -fsSL \
+            "https://github.com/Al-Sarraf-Tech/Haskell-Orchestrator/releases/download/v${VERSION}/${ARCHIVE}" \
+            -o "$TOOLS/$ARCHIVE"
+          echo "${SHA256}  $TOOLS/$ARCHIVE" | sha256sum --check --strict -
+          tar -xzf "$TOOLS/$ARCHIVE" -C "$TOOLS" "haskell-orchestrator-${VERSION}-linux-x86_64/orchestrator"
+          install -m 0755 "$TOOLS/haskell-orchestrator-${VERSION}-linux-x86_64/orchestrator" "$TOOLS/orchestrator"
+          "$TOOLS/orchestrator" --help | head -1
+
+      - name: Run Orchestrator scan
+        shell: bash
+        run: |
+          ORCH="${RUNNER_TEMP:?}/orchestrator-tools/orchestrator"
 
           # Global flags go before the subcommand
           GLOBAL_FLAGS=""
@@ -53,5 +68,5 @@ jobs:
             done
           fi
 
-          echo "Running: orchestrator-enterprise $GLOBAL_FLAGS scan .github/workflows/ (40 rules)"
+          echo "Running: orchestrator $GLOBAL_FLAGS scan .github/workflows/ (36 rules)"
           "$ORCH" $GLOBAL_FLAGS scan .github/workflows/

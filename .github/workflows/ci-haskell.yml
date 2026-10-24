@@ -19,7 +19,7 @@ jobs:
 
   build-and-test:
     name: Build and Test
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, haskell]
     needs: repo-guard
     timeout-minutes: 30
 
@@ -33,22 +33,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set CABAL_DIR
-        run: echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
-        shell: bash
-
-      - name: Cache Cabal
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cabal/packages
-            ~/.cabal/store
-            dist-newstyle
-          key: ${{ runner.os }}-cabal-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', 'cabal.project') }}
-          restore-keys: |
-            ${{ runner.os }}-cabal-${{ matrix.ghc }}-
-            ${{ runner.os }}-cabal-
-
       - name: Update package index
         run: cabal update
         shell: bash
@@ -56,14 +40,12 @@ jobs:
       - name: Install ormolu
         shell: bash
         run: |
-          if ! command -v ormolu &>/dev/null; then
-            mkdir -p "$HOME/.local/bin"
-            curl -fsSL "https://github.com/tweag/ormolu/releases/download/0.7.7.0/ormolu-x86_64-linux.zip" -o /tmp/ormolu.zip
-            perl -e 'use IO::Uncompress::Unzip qw(unzip $UnzipError); unzip("/tmp/ormolu.zip" => "$ENV{HOME}/.local/bin/ormolu") or die $UnzipError'
-            chmod +x "$HOME/.local/bin/ormolu"
-            rm -f /tmp/ormolu.zip
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          fi
+          mkdir -p "$RUNNER_TEMP/ormolu-bin"
+          curl --proto '=https' --tlsv1.2 --retry 3 -fsSL "https://github.com/tweag/ormolu/releases/download/0.7.7.0/ormolu-x86_64-linux.zip" -o "$RUNNER_TEMP/ormolu.zip"
+          echo "647a0c36d5675b9a7108f4bf4e6e703459c3ae33e18399f9ebce2ab4af295457  $RUNNER_TEMP/ormolu.zip" | sha256sum --check --strict -
+          perl -e 'use IO::Uncompress::Unzip qw(unzip $UnzipError); unzip("$ENV{RUNNER_TEMP}/ormolu.zip" => "$ENV{RUNNER_TEMP}/ormolu-bin/ormolu") or die $UnzipError'
+          chmod +x "$RUNNER_TEMP/ormolu-bin/ormolu"
+          echo "$RUNNER_TEMP/ormolu-bin" >> "$GITHUB_PATH"
       - name: Check formatting (ormolu)
         continue-on-error: true
         run: ormolu --mode check $(find src app test -name '*.hs')
@@ -129,7 +111,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, fleet-small]
     needs: repo-guard
     timeout-minutes: 10
 
@@ -144,16 +126,12 @@ jobs:
           LANG: C.UTF-8
           LC_ALL: C.UTF-8
         run: |
-          if command -v hlint >/dev/null 2>&1; then
-            hlint src/ app/ 2>&1 | cat
-          else
-            echo "hlint not found, skipping"
-          fi
+          hlint src/ app/ 2>&1 | cat
         shell: bash
 
   capability-check:
     name: Capability Contract Check
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, fleet-small]
     needs: repo-guard
     timeout-minutes: 5
 
@@ -178,28 +156,15 @@ jobs:
 
   orchestrator-self-check:
     name: "Orchestrator Self-Check"
-    runs-on: [self-hosted, dominus]
+    runs-on: [self-hosted, Linux, X64, haskell]
     needs: [build-and-test]
     timeout-minutes: 10
-    env:
-      CABAL_DIR: ${{ github.workspace }}/.cabal
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           persist-credentials: false
-
-      - name: Restore cabal cache
-        uses: actions/cache@v5
-        with:
-          path: |
-            ${{ github.workspace }}/.cabal/store
-            dist-newstyle
-          key: ${{ runner.os }}-cabal-selfcheck-${{ hashFiles('orchestrator.cabal') }}
-          restore-keys: |
-            ${{ runner.os }}-cabal-selfcheck-
-            ${{ runner.os }}-cabal-
 
       - name: Update package index
         run: cabal update
