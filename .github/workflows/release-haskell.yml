@@ -31,12 +31,6 @@ jobs:
             arch: x86_64
             ext: ''
             archive: tar.gz
-          - runner: [self-hosted, Windows, X64, haskell, unified-all]
-            os-name: windows
-            arch: x86_64
-            ext: '.exe'
-            archive: zip
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -49,17 +43,6 @@ jobs:
         run: |
           echo "CABAL_DIR=$HOME/.cabal" >> "$GITHUB_ENV"
 
-      - name: Setup Haskell paths (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          # GHCup install at C:\ghcup (unified — no user-profile .ghcup)
-          echo "C:\ghcup\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          # MSYS sh.exe required by packages with ./configure scripts (network, old-time)
-          echo "C:\Program Files\Git\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          $cabalDir = "$env:APPDATA\cabal"
-          echo "CABAL_DIR=$cabalDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
       - name: Update and build (Unix)
         if: runner.os != 'Windows'
         shell: bash
@@ -68,15 +51,6 @@ jobs:
           cabal update
           cabal build exe:orchestrator -O2
           mkdir -p _bin
-          cabal install exe:orchestrator -O2 --install-method=copy --overwrite-policy=always --installdir=_bin
-
-      - name: Update and build (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cabal update
-          cabal build exe:orchestrator -O2
-          New-Item -ItemType Directory -Force -Path _bin | Out-Null
           cabal install exe:orchestrator -O2 --install-method=copy --overwrite-policy=always --installdir=_bin
 
       - name: Run tests
@@ -99,25 +73,6 @@ jobs:
           echo "asset=staging/${ASSET_NAME}.tar.gz" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "asset_name=${ASSET_NAME}" >> "$GITHUB_OUTPUT"
-
-      - name: Package artifact (Windows)
-        if: runner.os == 'Windows'
-        id: package-windows
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}" -replace '^v', ''
-          $product = "haskell-orchestrator"
-          $assetName = "${product}-${version}-windows-x86_64"
-          $staging = "staging\${assetName}"
-          New-Item -ItemType Directory -Force -Path $staging | Out-Null
-          Copy-Item "_bin\orchestrator.exe" "${staging}\orchestrator.exe"
-          Copy-Item "README.md", "LICENSE", "CHANGELOG.md" $staging
-          Push-Location staging
-          7z a -tzip "${assetName}.zip" "${assetName}\"
-          Pop-Location
-          "asset=staging/${assetName}.zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "version=${version}" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "asset_name=${assetName}" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Build .deb package
         if: runner.os != 'Windows'
@@ -158,18 +113,6 @@ jobs:
           cd staging
           sha256sum *.tar.gz *.zip *.deb *.rpm 2>/dev/null > SHA256SUMS.txt || true
           cat SHA256SUMS.txt
-
-      - name: Generate checksums (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $files = Get-ChildItem staging -Include *.zip -Recurse
-          $results = foreach ($f in $files) {
-            $hash = (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower()
-            "$hash  $($f.Name)"
-          }
-          $results | Set-Content staging\SHA256SUMS.txt
-          Get-Content staging\SHA256SUMS.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
