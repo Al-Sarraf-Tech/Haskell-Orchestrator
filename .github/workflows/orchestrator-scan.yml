@@ -68,5 +68,7 @@ jobs:
             done
           fi
 
-          echo "Running: orchestrator $GLOBAL_FLAGS scan .github/workflows/ (36 rules)"
-          "$ORCH" $GLOBAL_FLAGS scan .github/workflows/
+          # The scanner takes the repository root and finds .github/workflows itself; pointing it at
+          # .github/workflows/ made it look for .github/workflows inside that directory and scan 0 files.
+          echo "Running: orchestrator $GLOBAL_FLAGS scan . (36 rules)"
+          "$ORCH" $GLOBAL_FLAGS scan .
